@@ -19,7 +19,7 @@ This is a Progressive Web App (PWA) for generating Atlas Daily Reports. It is de
 5. Select your main branch and `/ (root)` folder.
 6. Click **Save**.
 
-Your app will be available at `https://<your-username>.github.io/<repo-name>/`.
+Your app will be available at `https://scc693.github.io/Atalas_reports/`.
 
 ## Usage
 
