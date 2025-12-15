@@ -96,18 +96,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function updateProjectSelect() {
-        // Keep selected value
-        const currentVal = projectSelect.value;
-        projectSelect.innerHTML = '<option value="">Select Project</option>';
+        const datalist = document.getElementById('project-options');
+        datalist.innerHTML = '';
         projects.forEach(p => {
             const option = document.createElement('option');
             option.value = p;
-            option.textContent = p;
-            projectSelect.appendChild(option);
+            datalist.appendChild(option);
         });
-        if (projects.includes(currentVal)) {
-            projectSelect.value = currentVal;
-        }
     }
 
     function updateWorkerSelect() {
