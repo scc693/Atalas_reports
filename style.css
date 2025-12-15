@@ -237,3 +237,63 @@ button#generate-pdf {
         display: none !important;
     }
 }
+
+/* Table Wrapper for Horizontal Scrolling */
+.table-wrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+    margin-bottom: 10px;
+}
+
+/* Adjust table column widths to squeeze content */
+#crew-table th:nth-child(4),
+#crew-table td:nth-child(4) { /* Hours column */
+    width: 50px;
+}
+
+#crew-table input[type="number"] {
+    width: 100%;
+    min-width: 40px; /* Ensure it's not too small */
+    padding: 4px; /* Reduce padding */
+}
+
+#crew-table input[type="time"] {
+    min-width: 80px; /* Ensure time inputs are readable */
+    padding: 4px;
+}
+
+#crew-table input[type="text"] {
+    min-width: 80px;
+    padding: 4px;
+}
+
+/* Signature Actions */
+.signature-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+#save-signature {
+    background-color: #0275d8; /* Blue */
+}
+
+#delete-signature {
+    background-color: #666; /* Grey */
+}
+
+/* Share Button */
+#share-pdf {
+    width: 100%;
+    background-color: #0275d8; /* Blue */
+    font-size: 1.2rem;
+    padding: 15px;
+    margin-top: 10px; /* Space between generate and share if shown together */
+}
+
+/* Ensure actions can stack */
+.actions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
