@@ -29,9 +29,8 @@
                 <div class="form-group">
                     <label for="project-select">Project:</label>
                     <div class="input-with-action">
-                        <select id="project-select" required>
-                            <option value="">Select Project</option>
-                        </select>
+                        <input type="text" list="project-options" id="project-select" placeholder="Select or Type Project" required>
+                        <datalist id="project-options"></datalist>
                         <!-- Allows typing a new one if needed, or we manage it in settings -->
                     </div>
                 </div>
