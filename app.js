@@ -75,9 +75,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Check for Share Support
     if (navigator.share && navigator.canShare) {
         sharePdfBtn.classList.remove('hidden');
-        // generatePdfBtn.classList.add('hidden'); // Optional: Hide generate if share is available, but keeping both is safer
-        // Actually, user requested a way to quickly save/send. We can keep both or replace.
-        // Let's keep both for now as "Generate" downloads and "Share" opens share sheet.
+        // Keep both buttons: 'Generate' for direct download, 'Share' for system share options.
     }
 
     // Populate Initial Lists
