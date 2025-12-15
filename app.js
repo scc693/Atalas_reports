@@ -35,21 +35,29 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Initialize Signature Pad
     const signaturePad = new SignaturePad(canvas);
+    let signatureHasData = false;
+
+    signaturePad.addEventListener("beginStroke", () => {
+        signatureHasData = true;
+    });
 
     function resizeCanvas() {
-        // When resized, the canvas is cleared, so we need to save the current content if any
-        // But here we'll just handle basic resizing. If we want to persist on rotate, we'd need more logic.
+        // When resized, the canvas is cleared, so we need to save the current content if any.
+        let data = null;
+        if (signatureHasData) {
+            data = signaturePad.toDataURL();
+        }
+
         const ratio = Math.max(window.devicePixelRatio || 1, 1);
         canvas.width = canvas.offsetWidth * ratio;
         canvas.height = canvas.offsetHeight * ratio;
         canvas.getContext("2d").scale(ratio, ratio);
-        // signaturePad.clear(); // Removing this as it clears on every resize/orientation change. Ideally we'd reload the data.
 
-        // Reload signature if it was there or from cache
-        if (localStorage.getItem('atlas_signature')) {
-            loadSignature();
-        } else {
-            signaturePad.clear();
+        signaturePad.clear(); // Clear internal state matches canvas clear
+
+        if (data) {
+            signaturePad.fromDataURL(data);
+            // signatureHasData remains true
         }
     }
     window.addEventListener("resize", resizeCanvas);
@@ -210,11 +218,12 @@ document.addEventListener('DOMContentLoaded', () => {
     // Clear Signature (Canvas only)
     clearSignatureBtn.addEventListener('click', () => {
         signaturePad.clear();
+        signatureHasData = false;
     });
 
     // Save Signature
     saveSignatureBtn.addEventListener('click', () => {
-        if (signaturePad.isEmpty()) {
+        if (!signatureHasData) {
             alert("Please sign before saving.");
             return;
         }
@@ -234,6 +243,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const saved = localStorage.getItem('atlas_signature');
         if (saved) {
             signaturePad.fromDataURL(saved);
+            signatureHasData = true;
         }
     }
 
@@ -401,7 +411,7 @@ document.addEventListener('DOMContentLoaded', () => {
         yPos += 5; // Space below label
 
         // Signature Image
-        if (!signaturePad.isEmpty()) {
+        if (signatureHasData) {
             // Save canvas as image
             const dataURL = canvas.toDataURL('image/png');
             // Scale down to fit (Width 60, Height 20)
