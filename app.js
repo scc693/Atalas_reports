@@ -23,6 +23,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const reportForm = document.getElementById('report-form');
     const canvas = document.getElementById('signature-pad');
     const clearSignatureBtn = document.getElementById('clear-signature');
+    const saveSignatureBtn = document.getElementById('save-signature');
+    const deleteSignatureBtn = document.getElementById('delete-signature');
+    const sharePdfBtn = document.getElementById('share-pdf');
+    const generatePdfBtn = document.getElementById('generate-pdf');
     const dateInput = document.getElementById('report-date');
 
     // --- Initialization ---
@@ -33,14 +37,40 @@ document.addEventListener('DOMContentLoaded', () => {
     const signaturePad = new SignaturePad(canvas);
 
     function resizeCanvas() {
+        // When resized, the canvas is cleared, so we need to save the current content if any
+        // But here we'll just handle basic resizing. If we want to persist on rotate, we'd need more logic.
         const ratio = Math.max(window.devicePixelRatio || 1, 1);
         canvas.width = canvas.offsetWidth * ratio;
         canvas.height = canvas.offsetHeight * ratio;
         canvas.getContext("2d").scale(ratio, ratio);
-        signaturePad.clear(); // otherwise data is cleared but not repaint
+        // signaturePad.clear(); // Removing this as it clears on every resize/orientation change. Ideally we'd reload the data.
+
+        // Reload signature if it was there or from cache
+        if (localStorage.getItem('atlas_signature')) {
+            loadSignature();
+        } else {
+            signaturePad.clear();
+        }
     }
     window.addEventListener("resize", resizeCanvas);
-    resizeCanvas();
+
+    // Initial Resize & Load
+    // We need to wait a tick for layout
+    setTimeout(() => {
+        const ratio = Math.max(window.devicePixelRatio || 1, 1);
+        canvas.width = canvas.offsetWidth * ratio;
+        canvas.height = canvas.offsetHeight * ratio;
+        canvas.getContext("2d").scale(ratio, ratio);
+        loadSignature();
+    }, 100);
+
+    // Check for Share Support
+    if (navigator.share && navigator.canShare) {
+        sharePdfBtn.classList.remove('hidden');
+        // generatePdfBtn.classList.add('hidden'); // Optional: Hide generate if share is available, but keeping both is safer
+        // Actually, user requested a way to quickly save/send. We can keep both or replace.
+        // Let's keep both for now as "Generate" downloads and "Share" opens share sheet.
+    }
 
     // Populate Initial Lists
     updateProjectSelect();
@@ -177,18 +207,52 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Clear Signature
+    // Clear Signature (Canvas only)
     clearSignatureBtn.addEventListener('click', () => {
         signaturePad.clear();
     });
 
+    // Save Signature
+    saveSignatureBtn.addEventListener('click', () => {
+        if (signaturePad.isEmpty()) {
+            alert("Please sign before saving.");
+            return;
+        }
+        const data = signaturePad.toDataURL();
+        localStorage.setItem('atlas_signature', data);
+        alert("Signature saved!");
+    });
+
+    // Delete Saved Signature
+    deleteSignatureBtn.addEventListener('click', () => {
+        localStorage.removeItem('atlas_signature');
+        alert("Saved signature removed.");
+    });
+
+    // Load Signature Helper
+    function loadSignature() {
+        const saved = localStorage.getItem('atlas_signature');
+        if (saved) {
+            signaturePad.fromDataURL(saved);
+        }
+    }
+
     // Generate PDF
     reportForm.addEventListener('submit', (e) => {
         e.preventDefault();
-        generatePDF();
+        generatePDF(); // Default behavior (download)
     });
 
-    async function generatePDF() {
+    // Share PDF
+    sharePdfBtn.addEventListener('click', async () => {
+        if (!reportForm.checkValidity()) {
+            reportForm.reportValidity();
+            return;
+        }
+        await generatePDF(true); // true = share mode
+    });
+
+    async function generatePDF(isShare = false) {
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF();
 
@@ -353,7 +417,31 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Save PDF
         const filenameDate = dateVal.replace(/-/g, '');
-        doc.save(`Atlas_Daily_Report_${filenameDate}.pdf`);
+        const filename = `Atlas_Daily_Report_${filenameDate}.pdf`;
+
+        if (isShare) {
+            // Share Logic
+            const pdfBlob = doc.output('blob');
+            const file = new File([pdfBlob], filename, { type: 'application/pdf' });
+
+            if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                try {
+                    await navigator.share({
+                        files: [file],
+                        title: 'Atlas Daily Report',
+                        text: `Here is the daily report for ${dateStr}.`,
+                    });
+                } catch (err) {
+                    console.error('Error sharing:', err);
+                }
+            } else {
+                alert("Your browser does not support sharing files. Downloading instead.");
+                doc.save(filename);
+            }
+        } else {
+            // Download Logic
+            doc.save(filename);
+        }
     }
 
     function formatTime(timeStr) {

@@ -44,20 +44,22 @@
             <!-- Crew Members -->
             <div class="section">
                 <h2>Crew Members & Hours</h2>
-                <table id="crew-table">
-                    <thead>
-                        <tr>
-                            <th>Name</th>
-                            <th>Time In</th>
-                            <th>Time Out</th>
-                            <th>Hours</th>
-                            <th>Action</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <!-- Rows added dynamically -->
-                    </tbody>
-                </table>
+                <div class="table-wrapper">
+                    <table id="crew-table">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Time In</th>
+                                <th>Time Out</th>
+                                <th>Hours</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Rows added dynamically -->
+                        </tbody>
+                    </table>
+                </div>
                 <div class="crew-actions">
                     <select id="worker-select">
                         <option value="">Select Worker to Add</option>
@@ -121,11 +123,16 @@
                 <div class="signature-wrapper">
                     <canvas id="signature-pad"></canvas>
                 </div>
-                <button type="button" id="clear-signature">Clear Signature</button>
+                <div class="signature-actions">
+                    <button type="button" id="clear-signature">Clear</button>
+                    <button type="button" id="save-signature">Save</button>
+                    <button type="button" id="delete-signature">Delete Saved</button>
+                </div>
             </div>
 
             <div class="actions">
                 <button type="submit" id="generate-pdf">Generate PDF</button>
+                <button type="button" id="share-pdf" class="hidden">Share PDF</button>
             </div>
         </form>
     </div>
