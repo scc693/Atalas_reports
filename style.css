@@ -1,0 +1,239 @@
+:root {
+    --primary-color: #333;
+    --border-color: #ccc;
+    --bg-color: #f9f9f9;
+}
+
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    background-color: var(--bg-color);
+    color: #333;
+}
+
+.container {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 20px;
+    background-color: #fff;
+    box-shadow: 0 0 10px rgba(0,0,0,0.1);
+}
+
+header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 2px solid var(--primary-color);
+    margin-bottom: 20px;
+    padding-bottom: 10px;
+}
+
+h1 {
+    margin: 0;
+    font-size: 1.5rem;
+}
+
+h2 {
+    font-size: 1.1rem;
+    margin-top: 0;
+    margin-bottom: 10px;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 5px;
+}
+
+.section {
+    margin-bottom: 20px;
+    padding: 15px;
+    background: #fff;
+    border: 1px solid #eee;
+    border-radius: 4px;
+}
+
+.form-group {
+    margin-bottom: 10px;
+}
+
+label {
+    display: block;
+    font-weight: bold;
+    margin-bottom: 5px;
+}
+
+input[type="text"],
+input[type="date"],
+input[type="time"],
+select,
+textarea {
+    width: 100%;
+    padding: 8px;
+    box-sizing: border-box;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    font-size: 1rem;
+}
+
+.input-with-action {
+    display: flex;
+    gap: 10px;
+}
+
+/* Table Styles */
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 10px;
+}
+
+th, td {
+    border: 1px solid var(--border-color);
+    padding: 8px;
+    text-align: left;
+}
+
+th {
+    background-color: #f2f2f2;
+}
+
+.crew-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.time-row {
+    display: flex;
+    gap: 20px;
+}
+
+.time-row .form-group {
+    flex: 1;
+}
+
+/* Signature Pad */
+.signature-wrapper {
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    height: 150px;
+    margin-bottom: 10px;
+    position: relative; /* For ensuring canvas sizing works */
+    background-color: #fff;
+}
+
+canvas {
+    width: 100%;
+    height: 100%;
+}
+
+/* Buttons */
+button {
+    padding: 10px 15px;
+    background-color: var(--primary-color);
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 1rem;
+}
+
+button:hover {
+    opacity: 0.9;
+}
+
+button#clear-signature {
+    background-color: #d9534f;
+}
+
+button#generate-pdf {
+    width: 100%;
+    background-color: #5cb85c;
+    font-size: 1.2rem;
+    padding: 15px;
+}
+
+#settings-btn {
+    background: none;
+    color: #333;
+    border: 1px solid #ccc;
+    font-size: 0.9rem;
+}
+
+.delete-btn {
+    background-color: #ff4d4d;
+    padding: 5px 10px;
+    font-size: 0.8rem;
+}
+
+/* Modal */
+.modal {
+    display: flex; /* Hidden by default via class */
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.5);
+    justify-content: center;
+    align-items: center;
+}
+
+.hidden {
+    display: none;
+}
+
+.modal-content {
+    background-color: #fff;
+    padding: 20px;
+    border-radius: 5px;
+    width: 90%;
+    max-width: 500px;
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+.close-modal {
+    color: #aaa;
+    float: right;
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.settings-section {
+    margin-bottom: 20px;
+}
+
+.settings-section ul {
+    list-style: none;
+    padding: 0;
+    max-height: 150px;
+    overflow-y: auto;
+    border: 1px solid #eee;
+}
+
+.settings-section li {
+    display: flex;
+    justify-content: space-between;
+    padding: 5px 10px;
+    border-bottom: 1px solid #eee;
+}
+
+.add-item {
+    display: flex;
+    gap: 5px;
+    margin-top: 5px;
+}
+
+/* Print Hide */
+@media print {
+    body * {
+        visibility: hidden;
+    }
+    #report-form, #report-form * {
+        visibility: visible;
+    }
+    .actions, .crew-actions, #clear-signature, header, button {
+        display: none !important;
+    }
+}
