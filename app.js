@@ -36,18 +36,18 @@ document.addEventListener('DOMContentLoaded', () => {
     // Initialize Signature Pad
     const signaturePad = new SignaturePad(canvas);
     let signatureHasData = false;
+    let cachedBackgroundImage = null;
+    let cachedVectorData = [];
 
     signaturePad.addEventListener("beginStroke", () => {
         signatureHasData = true;
     });
 
-    function resizeCanvas() {
-        // When resized, the canvas is cleared, so we need to save the current content if any.
-        let data = null;
-        if (signatureHasData) {
-            data = signaturePad.toDataURL();
-        }
+    signaturePad.addEventListener("endStroke", () => {
+        cachedVectorData = signaturePad.toData();
+    });
 
+    function resizeCanvas() {
         const ratio = Math.max(window.devicePixelRatio || 1, 1);
         canvas.width = canvas.offsetWidth * ratio;
         canvas.height = canvas.offsetHeight * ratio;
@@ -55,9 +55,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
         signaturePad.clear(); // Clear internal state matches canvas clear
 
-        if (data) {
-            signaturePad.fromDataURL(data);
-            // signatureHasData remains true
+        if (cachedBackgroundImage) {
+            signaturePad.fromDataURL(cachedBackgroundImage, { ratio: ratio }).then(() => {
+                if (cachedVectorData && cachedVectorData.length > 0) {
+                    signaturePad.fromData(cachedVectorData, { clear: false });
+                }
+            });
+        } else if (cachedVectorData && cachedVectorData.length > 0) {
+            signaturePad.fromData(cachedVectorData);
         }
     }
     window.addEventListener("resize", resizeCanvas);
@@ -214,6 +219,8 @@ document.addEventListener('DOMContentLoaded', () => {
     clearSignatureBtn.addEventListener('click', () => {
         signaturePad.clear();
         signatureHasData = false;
+        cachedBackgroundImage = null;
+        cachedVectorData = [];
     });
 
     // Save Signature
@@ -222,7 +229,14 @@ document.addEventListener('DOMContentLoaded', () => {
             alert("Please sign before saving.");
             return;
         }
-        const data = signaturePad.toDataURL();
+
+        let data;
+        if (cachedBackgroundImage) {
+            data = signaturePad.toDataURL();
+        } else {
+            data = JSON.stringify(signaturePad.toData());
+        }
+
         localStorage.setItem('atlas_signature', data);
         alert("Signature saved!");
     });
@@ -237,8 +251,22 @@ document.addEventListener('DOMContentLoaded', () => {
     function loadSignature() {
         const saved = localStorage.getItem('atlas_signature');
         if (saved) {
-            signaturePad.fromDataURL(saved);
-            signatureHasData = true;
+            if (saved.trim().startsWith('[')) {
+                try {
+                    const points = JSON.parse(saved);
+                    signaturePad.fromData(points);
+                    signatureHasData = true;
+                    cachedVectorData = points;
+                    cachedBackgroundImage = null;
+                } catch (e) {
+                    console.error("Error loading signature data", e);
+                }
+            } else {
+                signaturePad.fromDataURL(saved);
+                signatureHasData = true;
+                cachedBackgroundImage = saved;
+                cachedVectorData = [];
+            }
         }
     }
 
