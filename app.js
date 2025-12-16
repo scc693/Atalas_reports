@@ -5,6 +5,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let workers = JSON.parse(localStorage.getItem('atlas_workers')) || defaultWorkers;
     let projects = JSON.parse(localStorage.getItem('atlas_projects')) || defaultProjects;
+    // New: Map project names to foreman names
+    let projectForemen = JSON.parse(localStorage.getItem('atlas_project_foremen')) || {};
 
     // --- DOM Elements ---
     const projectSelect = document.getElementById('project-select');
@@ -28,6 +30,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const sharePdfBtn = document.getElementById('share-pdf');
     const generatePdfBtn = document.getElementById('generate-pdf');
     const dateInput = document.getElementById('report-date');
+    const foremanInput = document.getElementById('foreman'); // Get foreman input
 
     // --- Initialization ---
     // Set today's date
@@ -93,9 +96,13 @@ document.addEventListener('DOMContentLoaded', () => {
     function saveState() {
         localStorage.setItem('atlas_workers', JSON.stringify(workers));
         localStorage.setItem('atlas_projects', JSON.stringify(projects));
-        updateProjectSelect();
-        updateWorkerSelect();
-        renderSettingsLists();
+        localStorage.setItem('atlas_project_foremen', JSON.stringify(projectForemen));
+
+        // No need to full re-render selects if just saving foremen, but safe to do so.
+        // renderSettingsLists needs to update if we want inputs to reflect state changes made elsewhere,
+        // though typically renderSettingsLists is only visible when modal is open.
+        // If modal is open, we might want to refresh lists, but be careful of focus loss.
+        // For now, we only call renderSettingsLists explicitly when needed or in init.
     }
 
     function updateProjectSelect() {
@@ -123,7 +130,50 @@ document.addEventListener('DOMContentLoaded', () => {
         projectsList.innerHTML = '';
         projects.forEach((p, index) => {
             const li = document.createElement('li');
-            li.innerHTML = `<span>${p}</span> <button class="delete-btn" data-type="project" data-index="${index}">Delete</button>`;
+
+            // Create container for Project Name + Foreman Input
+            const infoDiv = document.createElement('div');
+            infoDiv.style.display = 'flex';
+            infoDiv.style.flexDirection = 'column';
+            infoDiv.style.flex = '1';
+            infoDiv.style.marginRight = '10px';
+
+            const nameSpan = document.createElement('span');
+            nameSpan.textContent = p;
+            nameSpan.style.fontWeight = 'bold';
+
+            const foremanInputSettings = document.createElement('input');
+            foremanInputSettings.type = 'text';
+            foremanInputSettings.placeholder = 'Default Foreman';
+            foremanInputSettings.value = projectForemen[p] || '';
+            foremanInputSettings.className = 'settings-foreman-input';
+            foremanInputSettings.style.marginTop = '5px';
+            foremanInputSettings.style.fontSize = '0.9rem';
+            foremanInputSettings.style.padding = '4px';
+
+            // Save on change in settings
+            foremanInputSettings.addEventListener('change', (e) => {
+                projectForemen[p] = e.target.value;
+                saveState();
+
+                // If this is the currently selected project in the main form, update that too?
+                // It's a nice to have.
+                if (projectSelect.value === p) {
+                    foremanInput.value = e.target.value;
+                }
+            });
+
+            infoDiv.appendChild(nameSpan);
+            infoDiv.appendChild(foremanInputSettings);
+
+            const delBtn = document.createElement('button');
+            delBtn.className = 'delete-btn';
+            delBtn.dataset.type = 'project';
+            delBtn.dataset.index = index;
+            delBtn.textContent = 'Delete';
+
+            li.appendChild(infoDiv);
+            li.appendChild(delBtn);
             projectsList.appendChild(li);
         });
 
@@ -141,16 +191,57 @@ document.addEventListener('DOMContentLoaded', () => {
                 const type = e.target.dataset.type;
                 const index = parseInt(e.target.dataset.index);
                 if (type === 'project') {
+                    const projectToRemove = projects[index];
                     projects.splice(index, 1);
+                    // Also clean up the foreman mapping
+                    delete projectForemen[projectToRemove];
                 } else {
                     workers.splice(index, 1);
                 }
                 saveState();
+                // Re-render to show removal
+                renderSettingsLists();
+                updateProjectSelect();
+                updateWorkerSelect();
             });
         });
     }
 
     // --- Event Listeners ---
+
+    // Magic Saving: Load Foreman when Project Changed
+    projectSelect.addEventListener('change', () => {
+        const selectedProject = projectSelect.value;
+        if (selectedProject && projectForemen[selectedProject]) {
+            foremanInput.value = projectForemen[selectedProject];
+        } else {
+            // Optional: Clear if no history, or keep previous?
+            // User requested: "fallback to last foreman used globally" (implied by question 3 logic,
+            // but user confirmed "per jobsite with magic saving").
+            // Typically if I switch project to a new one, I might want the field clear or kept.
+            // Let's keep the current value if no mapping exists (less destructive),
+            // OR clear it. The prompt "Foreman / Project Lead" placeholder suggests it's required.
+            // If I switch from Project A (Foreman Bob) to Project B (New), keeping "Bob" might be helpful or confusing.
+            // I'll leave it as-is (do nothing) if no match found, so the user can edit or keep.
+            // Actually, if it's "Magic Saving", it implies we are recording.
+        }
+    });
+
+    // Magic Saving: Save Foreman when Foreman Input Changed
+    foremanInput.addEventListener('change', () => {
+        const currentProject = projectSelect.value;
+        const currentForeman = foremanInput.value;
+
+        // Only save if we have a project selected (even a typed custom one)
+        if (currentProject) {
+            projectForemen[currentProject] = currentForeman;
+            saveState();
+        }
+    });
+
+    // Also capture input on projectSelect to handle typed values that might match existing ones
+    // 'change' event fires on commit (enter or blur), 'input' fires on keystroke.
+    // For datalist, 'change' is best.
 
     // Add Worker to Table
     addWorkerBtn.addEventListener('click', () => {
@@ -180,6 +271,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Settings Modal
     settingsBtn.addEventListener('click', () => {
+        // Re-render to ensure inputs are up to date
+        renderSettingsLists();
         settingsModal.classList.remove('hidden');
     });
 
@@ -200,6 +293,8 @@ document.addEventListener('DOMContentLoaded', () => {
             projects.push(val);
             saveState();
             newProjectInput.value = '';
+            renderSettingsLists(); // Update UI immediately to show new item
+            updateProjectSelect();
         }
     });
 
@@ -210,6 +305,8 @@ document.addEventListener('DOMContentLoaded', () => {
             workers.push(val);
             saveState();
             newWorkerInput.value = '';
+            renderSettingsLists(); // Update UI
+            updateWorkerSelect();
         }
     });
 
