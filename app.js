@@ -554,7 +554,7 @@ document.addEventListener('DOMContentLoaded', () => {
         doc.setLineDash([]); // Reset to solid line
 
         // Save PDF
-        const filenameDate = dateVal.replace(/-/g, '');
+        const filenameDate = dateVal;
         const filename = `Atlas_Daily_Report_${filenameDate}.pdf`;
 
         if (isShare) {
@@ -567,7 +567,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     await navigator.share({
                         files: [file],
                         title: 'Atlas Daily Report',
-                        text: `Here is the daily report for ${dateStr}.`,
                     });
                 } catch (err) {
                     console.error('Error sharing:', err);
