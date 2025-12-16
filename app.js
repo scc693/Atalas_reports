@@ -248,6 +248,16 @@ document.addEventListener('DOMContentLoaded', () => {
         const workerName = workerSelect.value;
         if (!workerName) return;
 
+        // Check for duplicates
+        const existingNames = Array.from(crewTableBody.querySelectorAll('tr td:first-child input'))
+            .map(input => input.value);
+
+        if (existingNames.includes(workerName)) {
+            alert('This worker has already been added to the report.');
+            workerSelect.value = ''; // Reset select
+            return;
+        }
+
         addWorkerRow(workerName);
         workerSelect.value = ''; // Reset select
     });
