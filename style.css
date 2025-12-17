@@ -1,23 +1,66 @@
 :root {
+    /* Color Variables - Light Mode Default */
     --primary-color: #333;
+    --bg-body: #f9f9f9;
+    --bg-container: #fff;
+    --bg-section: #fff;
+    --bg-input: #fff;
+    --bg-th: #f2f2f2;
+    --bg-modal: #fff;
+
+    --text-main: #333;
+    --text-input: #333;
+    --text-placeholder: #777;
+
     --border-color: #ccc;
-    --bg-color: #f9f9f9;
+    --border-light: #eee;
+    --shadow-color: rgba(0,0,0,0.1);
+
+    /* Button Colors (Keep consistent or semantic) */
+    --btn-primary: #333;
+    --btn-danger: #d9534f;
+    --btn-success: #5cb85c;
+    --btn-blue: #0275d8;
+    --btn-delete-item: #ff4d4d;
+}
+
+/* Dark Mode Overrides */
+@media (prefers-color-scheme: dark) {
+    :root {
+        --primary-color: #e0e0e0; /* Lighter color for header borders in dark mode */
+        --bg-body: #121212;
+        --bg-container: #1e1e1e;
+        --bg-section: #2d2d2d; /* Slightly lighter than container for contrast */
+        --bg-input: #383838;
+        --bg-th: #333;
+        --bg-modal: #2d2d2d;
+
+        --text-main: #e0e0e0;
+        --text-input: #e0e0e0;
+        --text-placeholder: #aaa;
+
+        --border-color: #555;
+        --border-light: #444;
+        --shadow-color: rgba(0,0,0,0.5);
+
+        /* Adjust button colors for dark mode if needed, or keep them as they are usually fine */
+    }
 }
 
 body {
     font-family: Arial, sans-serif;
     margin: 0;
     padding: 0;
-    background-color: var(--bg-color);
-    color: #333;
+    background-color: var(--bg-body);
+    color: var(--text-main);
 }
 
 .container {
     max-width: 800px;
     margin: 0 auto;
     padding: 20px;
-    background-color: #fff;
-    box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    background-color: var(--bg-container);
+    box-shadow: 0 0 10px var(--shadow-color);
 }
 
 header {
@@ -32,21 +75,23 @@ header {
 h1 {
     margin: 0;
     font-size: 1.5rem;
+    color: var(--text-main);
 }
 
 h2 {
     font-size: 1.1rem;
     margin-top: 0;
     margin-bottom: 10px;
-    border-bottom: 1px solid #eee;
+    border-bottom: 1px solid var(--border-light);
     padding-bottom: 5px;
+    color: var(--text-main);
 }
 
 .section {
     margin-bottom: 20px;
     padding: 15px;
-    background: #fff;
-    border: 1px solid #eee;
+    background: var(--bg-section);
+    border: 1px solid var(--border-light);
     border-radius: 4px;
 }
 
@@ -58,9 +103,11 @@ label {
     display: block;
     font-weight: bold;
     margin-bottom: 5px;
+    color: var(--text-main);
 }
 
 input[type="text"],
+input[type="number"],
 input[type="date"],
 input[type="time"],
 select,
@@ -71,6 +118,12 @@ textarea {
     border: 1px solid var(--border-color);
     border-radius: 4px;
     font-size: 1rem;
+    background-color: var(--bg-input);
+    color: var(--text-input);
+}
+
+input::placeholder, textarea::placeholder {
+    color: var(--text-placeholder);
 }
 
 .input-with-action {
@@ -89,10 +142,11 @@ th, td {
     border: 1px solid var(--border-color);
     padding: 8px;
     text-align: left;
+    color: var(--text-main);
 }
 
 th {
-    background-color: #f2f2f2;
+    background-color: var(--bg-th);
 }
 
 .crew-actions {
@@ -110,25 +164,26 @@ th {
     flex: 1;
 }
 
-/* Signature Pad */
+/* Signature Pad - FORCED LIGHT MODE */
 .signature-wrapper {
-    border: 1px solid var(--border-color);
+    border: 1px solid #ccc; /* Always light border */
     border-radius: 4px;
     height: 150px;
     margin-bottom: 10px;
-    position: relative; /* For ensuring canvas sizing works */
-    background-color: #fff;
+    position: relative;
+    background-color: #fff !important; /* Always white */
 }
 
 canvas {
     width: 100%;
     height: 100%;
+    display: block; /* Removes descender space */
 }
 
 /* Buttons */
 button {
     padding: 10px 15px;
-    background-color: var(--primary-color);
+    background-color: var(--btn-primary);
     color: #fff;
     border: none;
     border-radius: 4px;
@@ -141,39 +196,39 @@ button:hover {
 }
 
 button#clear-signature {
-    background-color: #d9534f;
+    background-color: var(--btn-danger);
 }
 
 button#generate-pdf {
     width: 100%;
-    background-color: #5cb85c;
+    background-color: var(--btn-success);
     font-size: 1.2rem;
     padding: 15px;
 }
 
 #settings-btn {
     background: none;
-    color: #333;
-    border: 1px solid #ccc;
+    color: var(--text-main);
+    border: 1px solid var(--border-color);
     font-size: 0.9rem;
 }
 
 .delete-btn {
-    background-color: #ff4d4d;
+    background-color: var(--btn-delete-item);
     padding: 5px 10px;
     font-size: 0.8rem;
 }
 
 /* Modal */
 .modal {
-    display: flex; /* Hidden by default via class */
+    display: flex;
     position: fixed;
     z-index: 1000;
     left: 0;
     top: 0;
     width: 100%;
     height: 100%;
-    background-color: rgba(0,0,0,0.5);
+    background-color: rgba(0,0,0,0.5); /* Dimming overlay */
     justify-content: center;
     align-items: center;
 }
@@ -183,13 +238,15 @@ button#generate-pdf {
 }
 
 .modal-content {
-    background-color: #fff;
+    background-color: var(--bg-modal);
+    color: var(--text-main);
     padding: 20px;
     border-radius: 5px;
     width: 90%;
     max-width: 500px;
     max-height: 90vh;
     overflow-y: auto;
+    box-shadow: 0 4px 6px var(--shadow-color);
 }
 
 .close-modal {
@@ -197,6 +254,13 @@ button#generate-pdf {
     float: right;
     font-size: 28px;
     font-weight: bold;
+    cursor: pointer;
+}
+
+.close-modal:hover,
+.close-modal:focus {
+    color: var(--text-main);
+    text-decoration: none;
     cursor: pointer;
 }
 
@@ -209,14 +273,15 @@ button#generate-pdf {
     padding: 0;
     max-height: 150px;
     overflow-y: auto;
-    border: 1px solid #eee;
+    border: 1px solid var(--border-light);
 }
 
 .settings-section li {
     display: flex;
     justify-content: space-between;
     padding: 5px 10px;
-    border-bottom: 1px solid #eee;
+    border-bottom: 1px solid var(--border-light);
+    align-items: center;
 }
 
 .add-item {
@@ -232,6 +297,8 @@ button#generate-pdf {
     }
     #report-form, #report-form * {
         visibility: visible;
+        color: black !important; /* Force black text for print */
+        background-color: white !important; /* Force white bg for print */
     }
     .actions, .crew-actions, #clear-signature, header, button {
         display: none !important;
@@ -241,24 +308,24 @@ button#generate-pdf {
 /* Table Wrapper for Horizontal Scrolling */
 .table-wrapper {
     overflow-x: auto;
-    -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+    -webkit-overflow-scrolling: touch;
     margin-bottom: 10px;
 }
 
-/* Adjust table column widths to squeeze content */
+/* Adjust table column widths */
 #crew-table th:nth-child(4),
-#crew-table td:nth-child(4) { /* Hours column */
+#crew-table td:nth-child(4) {
     width: 50px;
 }
 
 #crew-table input[type="number"] {
     width: 100%;
-    min-width: 40px; /* Ensure it's not too small */
-    padding: 4px; /* Reduce padding */
+    min-width: 40px;
+    padding: 4px;
 }
 
 #crew-table input[type="time"] {
-    min-width: 80px; /* Ensure time inputs are readable */
+    min-width: 80px;
     padding: 4px;
 }
 
@@ -275,20 +342,20 @@ button#generate-pdf {
 }
 
 #save-signature {
-    background-color: #0275d8; /* Blue */
+    background-color: var(--btn-blue);
 }
 
 #delete-signature {
-    background-color: #666; /* Grey */
+    background-color: #666;
 }
 
 /* Share Button */
 #share-pdf {
     width: 100%;
-    background-color: #0275d8; /* Blue */
+    background-color: var(--btn-blue);
     font-size: 1.2rem;
     padding: 15px;
-    margin-top: 10px; /* Space between generate and share if shown together */
+    margin-top: 10px;
 }
 
 /* Ensure actions can stack */
@@ -296,4 +363,11 @@ button#generate-pdf {
     display: flex;
     flex-direction: column;
     gap: 10px;
+}
+
+/* Specific fix for settings foreman input */
+.settings-foreman-input {
+    background-color: var(--bg-input);
+    color: var(--text-input);
+    border: 1px solid var(--border-color);
 }
