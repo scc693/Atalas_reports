@@ -1,4 +1,4 @@
-import { db } from './firebase-config.js';
+import { db, app } from './firebase-config.js';
 import {
     collection,
     addDoc,
@@ -12,6 +12,21 @@ import {
 } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
 
 document.addEventListener('DOMContentLoaded', () => {
+    // Check if Firebase is configured
+    if (app.options.apiKey === "YOUR_API_KEY") {
+        const container = document.querySelector('.container');
+        const alertDiv = document.createElement('div');
+        alertDiv.style.backgroundColor = '#ffcc00';
+        alertDiv.style.color = '#333';
+        alertDiv.style.padding = '15px';
+        alertDiv.style.marginBottom = '20px';
+        alertDiv.style.borderRadius = '5px';
+        alertDiv.style.textAlign = 'center';
+        alertDiv.style.fontWeight = 'bold';
+        alertDiv.innerHTML = '⚠️ Firebase Setup Required: Please update <code style="background:rgba(255,255,255,0.5);padding:2px 4px;border-radius:3px;">firebase-config.js</code> using instructions in <code>FIREBASE_SETUP.md</code> to enable cloud features.';
+
+        container.insertBefore(alertDiv, container.firstChild);
+    }
     // --- State Management ---
     // Arrays now hold objects from Firestore
     // workers: [{ id: '...', name: '...' }]
