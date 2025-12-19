@@ -126,8 +126,44 @@ document.addEventListener('DOMContentLoaded', () => {
     // Add Migration Button to Settings
     addMigrationButton();
 
+    // Check for First-Time Update & Auto-Migrate
+    checkFirstTimeUpdate();
+
 
     // --- Firestore Functions ---
+
+    function checkFirstTimeUpdate() {
+        const hasAcknowledged = localStorage.getItem('atlas_update_v6_acknowledged');
+        const legacyWorkers = localStorage.getItem('atlas_workers');
+        const legacyProjects = localStorage.getItem('atlas_projects');
+
+        // If user has legacy data but hasn't acknowledged the new system
+        if ((legacyWorkers || legacyProjects) && !hasAcknowledged) {
+
+            // Create Popup
+            const popupOverlay = document.createElement('div');
+            popupOverlay.className = 'modal';
+            popupOverlay.style.display = 'flex'; // Force show
+            popupOverlay.innerHTML = `
+                <div class="modal-content" style="text-align: center;">
+                    <h2>Database Update</h2>
+                    <p>The app has been upgraded to use a shared cloud database.</p>
+                    <p>Your local lists are being securely merged with the cloud database. Please verify your Project and Worker lists.</p>
+                    <button id="ack-update-btn" style="margin-top: 15px;">OK, Got it</button>
+                </div>
+            `;
+            document.body.appendChild(popupOverlay);
+
+            // Trigger Auto-Migration
+            migrateData(null, true); // true = silent/auto mode
+
+            // Handle Close
+            document.getElementById('ack-update-btn').addEventListener('click', () => {
+                popupOverlay.remove();
+                localStorage.setItem('atlas_update_v6_acknowledged', 'true');
+            });
+        }
+    }
 
     function setupRealtimeListeners() {
         // Workers Listener
@@ -185,9 +221,11 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    async function migrateData(btnElement) {
-        btnElement.disabled = true;
-        btnElement.textContent = "Uploading...";
+    async function migrateData(btnElement = null, silent = false) {
+        if (btnElement) {
+            btnElement.disabled = true;
+            btnElement.textContent = "Uploading...";
+        }
 
         try {
             // Migrate Workers
@@ -215,20 +253,23 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
 
-            alert("Migration complete! Your lists are now on the cloud.");
-            btnElement.remove(); // Remove button
+            if (!silent) {
+                alert("Migration complete! Your lists are now on the cloud.");
+            }
 
-            // Optional: Clear legacy list data to prevent re-migration confusion?
-            // localStorage.removeItem('atlas_workers');
-            // localStorage.removeItem('atlas_projects');
-            // localStorage.removeItem('atlas_project_foremen');
-            // Keeping them for safety is fine, the button logic checks existence.
+            if (btnElement) {
+                btnElement.remove(); // Remove button
+            }
 
         } catch (error) {
             console.error("Migration failed: ", error);
-            alert("An error occurred during migration. Check console for details.");
-            btnElement.disabled = false;
-            btnElement.textContent = "☁️ Upload Local Data to Cloud";
+            if (!silent) {
+                alert("An error occurred during migration. Check console for details.");
+                if (btnElement) {
+                    btnElement.disabled = false;
+                    btnElement.textContent = "☁️ Upload Local Data to Cloud";
+                }
+            }
         }
     }
 
