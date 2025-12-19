@@ -566,7 +566,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 try {
                     await navigator.share({
                         files: [file],
-                        title: 'Atlas Daily Report',
                     });
                 } catch (err) {
                     console.error('Error sharing:', err);
