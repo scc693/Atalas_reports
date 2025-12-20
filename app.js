@@ -11,7 +11,7 @@ import {
     orderBy,
     getDocs,
     where
-} from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
+} from "https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js";
 
 document.addEventListener('DOMContentLoaded', () => {
     // Check if Firebase is configured
