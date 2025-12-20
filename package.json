@@ -1,0 +1,25 @@
+{
+  "name": "atlas_reports",
+  "version": "1.0.0",
+  "description": "This is a Progressive Web App (PWA) for generating Atlas Daily Reports. It is designed to be hosted on GitHub Pages.",
+  "main": "app.js",
+  "type": "module",
+  "scripts": {
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
+    "start": "npx http-server . -c-1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/scc693/Atlas_reports.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/scc693/Atlas_reports/issues"
+  },
+  "homepage": "https://github.com/scc693/Atlas_reports#readme",
+  "devDependencies": {
+    "jest": "^30.2.0"
+  }
+}

@@ -12,6 +12,7 @@ import {
     getDocs,
     where
 } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js";
+import { formatTime, removeFromList, isNameInList } from './utils.js';
 
 document.addEventListener('DOMContentLoaded', () => {
     // Check if Firebase is configured
@@ -130,8 +131,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // Initialize Logic based on Configuration
     if (isConfigured) {
         setupRealtimeListeners();
-        addMigrationButton();
-        checkFirstTimeUpdate();
+        // Silent Auto-Migration on startup
+        migrateData(null, true);
     } else {
         // Fallback to LocalStorage Mode
         loadLocalData();
@@ -173,39 +174,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Firestore Functions ---
 
-    function checkFirstTimeUpdate() {
-        const hasAcknowledged = localStorage.getItem('atlas_update_v6_acknowledged');
-        const legacyWorkers = localStorage.getItem('atlas_workers');
-        const legacyProjects = localStorage.getItem('atlas_projects');
-
-        // If user has legacy data but hasn't acknowledged the new system
-        if ((legacyWorkers || legacyProjects) && !hasAcknowledged) {
-
-            // Create Popup
-            const popupOverlay = document.createElement('div');
-            popupOverlay.className = 'modal';
-            popupOverlay.style.display = 'flex'; // Force show
-            popupOverlay.innerHTML = `
-                <div class="modal-content" style="text-align: center;">
-                    <h2>Database Update</h2>
-                    <p>The app has been upgraded to use a shared cloud database.</p>
-                    <p>Your local lists are being securely merged with the cloud database. Please verify your Project and Worker lists.</p>
-                    <button id="ack-update-btn" style="margin-top: 15px;">OK, Got it</button>
-                </div>
-            `;
-            document.body.appendChild(popupOverlay);
-
-            // Trigger Auto-Migration
-            migrateData(null, true); // true = silent/auto mode
-
-            // Handle Close
-            document.getElementById('ack-update-btn').addEventListener('click', () => {
-                popupOverlay.remove();
-                localStorage.setItem('atlas_update_v6_acknowledged', 'true');
-            });
-        }
-    }
-
     function setupRealtimeListeners() {
         // Workers Listener
         const qWorkers = query(collection(db, "workers"), orderBy("name"));
@@ -214,6 +182,9 @@ document.addEventListener('DOMContentLoaded', () => {
             snapshot.forEach((doc) => {
                 workers.push({ id: doc.id, ...doc.data() });
             });
+            // Keep local storage in sync with cloud to prevent "resurrection" issues
+            saveLocalData();
+
             updateWorkerSelect();
             if (!settingsModal.classList.contains('hidden')) {
                 renderSettingsLists();
@@ -227,39 +198,14 @@ document.addEventListener('DOMContentLoaded', () => {
             snapshot.forEach((doc) => {
                 projects.push({ id: doc.id, ...doc.data() });
             });
+            // Keep local storage in sync with cloud
+            saveLocalData();
+
             updateProjectSelect();
             if (!settingsModal.classList.contains('hidden')) {
                 renderSettingsLists();
             }
         });
-    }
-
-    function addMigrationButton() {
-        const modalContent = document.querySelector('.modal-content');
-
-        // Check if legacy data exists
-        const legacyWorkers = localStorage.getItem('atlas_workers');
-        const legacyProjects = localStorage.getItem('atlas_projects');
-
-        if (legacyWorkers || legacyProjects) {
-            const migrateBtn = document.createElement('button');
-            migrateBtn.textContent = "☁️ Upload Local Data to Cloud";
-            migrateBtn.style.marginTop = "20px";
-            migrateBtn.style.width = "100%";
-            migrateBtn.style.backgroundColor = "#4CAF50";
-            migrateBtn.style.color = "white";
-            migrateBtn.style.padding = "10px";
-            migrateBtn.style.border = "none";
-            migrateBtn.style.cursor = "pointer";
-
-            migrateBtn.addEventListener('click', () => {
-                if (confirm("This will upload your local workers and projects to the shared database. Continue?")) {
-                    migrateData(migrateBtn);
-                }
-            });
-
-            modalContent.appendChild(migrateBtn);
-        }
     }
 
     async function migrateData(btnElement = null, silent = false) {
@@ -396,7 +342,19 @@ document.addEventListener('DOMContentLoaded', () => {
             delBtn.className = 'delete-btn';
             delBtn.textContent = 'Delete';
             delBtn.addEventListener('click', async () => {
-                if(confirm(`Delete project "${p.name}"?`)) {
+                if (confirm(`Delete project "${p.name}"?`)) {
+                    // Always remove from Local Storage (Legacy/Backup) to prevent "Resurrection" on Sync
+                    const localProjects = JSON.parse(localStorage.getItem('atlas_projects') || '[]');
+                    const newLocalProjects = removeFromList(localProjects, p.name);
+                    localStorage.setItem('atlas_projects', JSON.stringify(newLocalProjects));
+
+                    // Also clean up foremen map
+                    const localForemen = JSON.parse(localStorage.getItem('atlas_project_foremen') || '{}');
+                    if (localForemen[p.name]) {
+                        delete localForemen[p.name];
+                        localStorage.setItem('atlas_project_foremen', JSON.stringify(localForemen));
+                    }
+
                     if (isConfigured) {
                         try {
                             await deleteDoc(doc(db, "projects", p.id));
@@ -416,6 +374,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
 
+            infoDiv.appendChild(nameSpan);
+            infoDiv.appendChild(foremanInputSettings);
             li.appendChild(infoDiv);
             li.appendChild(delBtn);
             projectsList.appendChild(li);
@@ -431,7 +391,12 @@ document.addEventListener('DOMContentLoaded', () => {
             delBtn.className = 'delete-btn';
             delBtn.textContent = 'Delete';
             delBtn.addEventListener('click', async () => {
-                if(confirm(`Delete worker "${w.name}"?`)) {
+                if (confirm(`Delete worker "${w.name}"?`)) {
+                    // Always remove from Local Storage (Legacy/Backup) to prevent "Resurrection" on Sync
+                    const localWorkers = JSON.parse(localStorage.getItem('atlas_workers') || '[]');
+                    const newLocalWorkers = removeFromList(localWorkers, w.name);
+                    localStorage.setItem('atlas_workers', JSON.stringify(newLocalWorkers));
+
                     if (isConfigured) {
                         try {
                             await deleteDoc(doc(db, "workers", w.id));
@@ -443,7 +408,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         const idx = workers.findIndex(work => work.id === w.id);
                         if (idx > -1) {
                             workers.splice(idx, 1);
-                            saveLocalData();
+                            saveLocalData(); // This is redundant with the explicit removal above but keeps flow consistent
                             renderSettingsLists();
                             updateWorkerSelect();
                         }
@@ -551,7 +516,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const val = newProjectInput.value.trim();
         if (val) {
             // Check existence
-            if (projects.some(p => p.name === val)) {
+            if (isNameInList(projects, val)) {
                 alert("Project already exists!");
                 return;
             }
@@ -580,7 +545,7 @@ document.addEventListener('DOMContentLoaded', () => {
     addWorkerSettingsBtn.addEventListener('click', async () => {
         const val = newWorkerInput.value.trim();
         if (val) {
-             if (workers.some(w => w.name === val)) {
+            if (isNameInList(workers, val)) {
                 alert("Worker already exists!");
                 return;
             }
@@ -864,12 +829,5 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function formatTime(timeStr) {
-        if (!timeStr) return '';
-        const [hour, minute] = timeStr.split(':');
-        const h = parseInt(hour);
-        const ampm = h >= 12 ? 'PM' : 'AM';
-        const h12 = h % 12 || 12;
-        return `${h12}:${minute} ${ampm}`;
-    }
+
 });
