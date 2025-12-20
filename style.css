@@ -486,9 +486,12 @@ button#generate-pdf {
 
     /* Grid Spans */
     .section.header-info,
-    .section:has(h2[data-i18n="crew_title"]), /* Crew Members */
-    .section:has(h2[data-i18n="work_performed_title"]), /* Work Performed */
-    .section:has(h2[data-i18n="signature_title"]), /* Signature */
+    .section:has(h2[data-i18n="crew_title"]),
+    /* Crew Members */
+    .section:has(h2[data-i18n="work_performed_title"]),
+    /* Work Performed */
+    .section:has(h2[data-i18n="signature_title"]),
+    /* Signature */
     .actions {
         grid-column: span 2;
     }
@@ -496,25 +499,149 @@ button#generate-pdf {
     /* Specific adjustment for Time In/Out to ensure it fits nicely or spans if desired. 
        Plan said Span 1, but let's see. If it feels tight we can span 2. 
        For now, let it be 1 column (default) which puts it next to Photos Sent or Delays. */
-    
+
     /* Ensure textareas in half-width columns are tall enough */
     textarea {
         resize: vertical;
     }
-    
+
     /* Actions - horizontal alignment */
     .actions {
         flex-direction: row;
         justify-content: flex-end;
     }
-    
+
     #generate-pdf {
         width: auto;
         min-width: 200px;
     }
-    
+
     #share-pdf {
         width: auto;
         margin-top: 0;
     }
+}
+
+/* --- New Tab Styles --- */
+.tab-nav {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 20px;
+    gap: 10px;
+}
+
+.tab-btn {
+    padding: 10px 20px;
+    background-color: var(--bg-input);
+    color: var(--text-main);
+    border: 1px solid var(--border-color);
+    border-radius: 20px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: all 0.3s ease;
+}
+
+.tab-btn.active {
+    background-color: var(--btn-primary);
+    color: #fff;
+    border-color: var(--btn-primary);
+}
+
+.tab-content {
+    display: none;
+    animation: fadeIn 0.3s ease-in-out;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(5px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* --- Incident Report Styles --- */
+.file-upload-label {
+    display: inline-block;
+    padding: 10px 15px;
+    background-color: var(--btn-blue);
+    color: white;
+    border-radius: 5px;
+    cursor: pointer;
+    text-align: center;
+    transition: background 0.3s;
+}
+
+.file-upload-label:hover {
+    background-color: #025aa5;
+}
+
+.photo-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.photo-preview {
+    position: relative;
+    width: 100px;
+    height: 100px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.photo-preview img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.photo-delete-btn {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    background: rgba(255, 0, 0, 0.8);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    font-size: 12px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+}
+
+/* Admin Selection */
+.admin-list {
+    list-style: none;
+    padding: 0;
+}
+
+.admin-list li {
+    padding: 10px;
+    border-bottom: 1px solid var(--border-light);
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.admin-list li:hover {
+    background-color: var(--bg-th);
+}
+
+.admin-list li {
+    font-weight: bold;
+    color: var(--btn-blue);
 }
