@@ -39,7 +39,18 @@ export const translations = {
         "modal_project_placeholder": "New Project Name",
         "modal_add_btn": "Add",
         "modal_workers_title": "Workers",
-        "modal_worker_placeholder": "New Worker Name"
+        "incident_date_label": "Date of Incident:",
+        "incident_project_label": "Project / Location:",
+        "incident_foreman_label": "Foreman / Lead:",
+        "your_name_placeholder": "Your Name",
+        "incident_details_title": "Incident Details",
+        "incident_desc_label": "Description of Incident:",
+        "incident_desc_placeholder": "Describe what happened, who was involved, and any immediate actions taken.",
+        "attach_photos_btn": "📷 Attach Photos",
+        "submit_report_btn": "Submit Report",
+        "reviews_list_title": "Pending Incident Reports",
+        "admin_select_title": "Select Admin to Notify",
+        "admin_select_desc": "Please select an admin to review and sign off on this incident report."
     },
     "es": {
         "app_title": "Informe Diario Atlas",
@@ -81,6 +92,18 @@ export const translations = {
         "modal_project_placeholder": "Nombre del Nuevo Proyecto",
         "modal_add_btn": "Agregar",
         "modal_workers_title": "Trabajadores",
-        "modal_worker_placeholder": "Nombre del Nuevo Trabajador"
+        "modal_worker_placeholder": "Nombre del Nuevo Trabajador",
+        "incident_date_label": "Fecha del Incidente:",
+        "incident_project_label": "Proyecto / Ubicación:",
+        "incident_foreman_label": "Capataz / Líder:",
+        "your_name_placeholder": "Su Nombre",
+        "incident_details_title": "Detalles del Incidente",
+        "incident_desc_label": "Descripción del Incidente:",
+        "incident_desc_placeholder": "Describa lo que sucedió, quiénes estuvieron involucrados y las acciones inmediatas tomadas.",
+        "attach_photos_btn": "📷 Adjuntar Fotos",
+        "submit_report_btn": "Enviar Informe",
+        "reviews_list_title": "Informes de Incidentes Pendientes",
+        "admin_select_title": "Seleccionar Administrador para Notificar",
+        "admin_select_desc": "Seleccione un administrador para revisar y aprobar este informe de incidente."
     }
 };
