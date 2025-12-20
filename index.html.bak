@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Atlas Daily Report</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#ffffff">
+    <link rel="stylesheet" href="style.css">
+    <!-- Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js"></script>
+</head>
+
+<body>
+    <div id="login-overlay">
+        <div class="login-box">
+            <h1>Atlas Daily Report</h1>
+            <p>Please sign in to access the application.</p>
+            <button id="google-login-btn">Sign in with Google</button>
+        </div>
+    </div>
+
+    <!-- Main App Content (Hidden locally until logged in) -->
+    <div class="container hidden" id="app-content">
+        <header>
+            <h1 data-i18n="app_title">Atlas Daily Report</h1>
+            <div class="header-actions">
+                <span id="user-display-name" style="margin-right: 10px; font-weight: bold;"></span>
+                <button id="lang-btn">Español</button>
+                <button id="settings-btn" aria-label="Settings" data-i18n="manage_lists" class="hidden">⚙️ Manage
+                    Lists</button>
+                <button id="logout-btn" style="background-color: #f44336; margin-left: 5px;">Logout</button>
+            </div>
+        </header>
+
+        <form id="report-form">
+            <!-- Header Info -->
+            <div class="section header-info">
+                <div class="form-group">
+                    <label for="report-date" data-i18n="date_label">Date:</label>
+                    <input type="date" id="report-date" required>
+                </div>
+                <div class="form-group">
+                    <label for="project-select" data-i18n="project_label">Project:</label>
+                    <div class="input-with-action">
+                        <input type="text" list="project-options" id="project-select"
+                            placeholder="Select or Type Project" data-i18n-placeholder="project_placeholder" required>
+                        <datalist id="project-options"></datalist>
+                        <!-- Allows typing a new one if needed, or we manage it in settings -->
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="foreman" data-i18n="foreman_label">Foreman / Project Lead:</label>
+                    <input type="text" id="foreman" placeholder="Blayne Nusbaum / Stuart Dundas"
+                        data-i18n-placeholder="foreman_placeholder" required>
+                </div>
+            </div>
+
+            <!-- Crew Members -->
+            <div class="section">
+                <h2 data-i18n="crew_title">Crew Members & Hours</h2>
+                <div class="table-wrapper">
+                    <table id="crew-table">
+                        <thead>
+                            <tr>
+                                <th data-i18n="table_name">Name</th>
+                                <th data-i18n="table_time_in">Time In</th>
+                                <th data-i18n="table_time_out">Time Out</th>
+                                <th data-i18n="table_hours">Hours</th>
+                                <th data-i18n="table_action">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Rows added dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+                <div class="crew-actions">
+                    <select id="worker-select">
+                        <option value="" data-i18n="select_worker_default">Select Worker to Add</option>
+                    </select>
+                    <button type="button" id="add-worker-btn" data-i18n="add_worker_btn">Add Worker</button>
+                </div>
+            </div>
+
+            <!-- Report Body -->
+            <div class="section">
+                <h2 data-i18n="work_performed_title">Work Performed Today</h2>
+                <textarea id="work-performed" rows="4"></textarea>
+            </div>
+
+            <div class="section">
+                <h2 data-i18n="equipment_title">Equipment Used / Issues</h2>
+                <textarea id="equipment" rows="3"></textarea>
+            </div>
+
+            <div class="section">
+                <h2 data-i18n="hauling_title">Hauling / Dumpsters</h2>
+                <textarea id="hauling" rows="2"></textarea>
+            </div>
+
+            <div class="section">
+                <h2 data-i18n="safety_title">Safety Topics / Incidents</h2>
+                <textarea id="safety" rows="2" data-i18n="safety_placeholder">No incidents reported.</textarea>
+            </div>
+
+            <div class="section">
+                <h2 data-i18n="delays_title">Delays / Problems / Needs</h2>
+                <textarea id="delays" rows="2"></textarea>
+            </div>
+
+            <div class="section">
+                <h2 data-i18n="photos_title">Photos Sent</h2>
+                <select id="photos-sent">
+                    <option value="Yes." data-i18n="yes">Yes.</option>
+                    <option value="No." data-i18n="no">No.</option>
+                </select>
+            </div>
+
+            <!-- Time In / Time Out Footer -->
+            <div class="section">
+                <h2 data-i18n="time_footer_title">Time In / Time Out</h2>
+                <div class="time-row">
+                    <div class="form-group">
+                        <label for="general-time-in" data-i18n="time_in_label">Time In</label>
+                        <input type="time" id="general-time-in" value="08:00">
+                    </div>
+                    <div class="form-group">
+                        <label for="general-time-out" data-i18n="time_out_label">Time Out</label>
+                        <input type="time" id="general-time-out" value="16:30">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Signature -->
+            <div class="section">
+                <h2 data-i18n="signature_title">Foreman / Project Lead Signature</h2>
+                <div class="signature-wrapper">
+                    <canvas id="signature-pad"></canvas>
+                </div>
+                <div class="signature-actions">
+                    <button type="button" id="clear-signature" data-i18n="clear_btn">Clear</button>
+                    <button type="button" id="save-signature" data-i18n="save_btn">Save</button>
+                    <button type="button" id="load-signature" data-i18n="load_saved_btn">Load Saved Signature</button>
+                    <button type="button" id="delete-signature" data-i18n="delete_saved_btn">Delete Saved</button>
+                </div>
+            </div>
+
+            <div class="actions">
+                <button type="submit" id="generate-pdf" data-i18n="generate_pdf_btn">Generate PDF</button>
+                <button type="button" id="share-pdf" class="hidden" data-i18n="share_pdf_btn">Share PDF</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settings-modal" class="modal hidden">
+        <div class="modal-content">
+            <span class="close-modal">&times;</span>
+            <h2 data-i18n="modal_title">Manage Lists</h2>
+
+            <div class="settings-section">
+                <h3 data-i18n="modal_projects_title">Projects / Job Sites</h3>
+                <ul id="projects-list"></ul>
+                <div class="add-item">
+                    <input type="text" id="new-project" placeholder="New Project Name"
+                        data-i18n-placeholder="modal_project_placeholder">
+                    <button id="add-project-btn" data-i18n="modal_add_btn">Add</button>
+                </div>
+            </div>
+
+            <div class="settings-section">
+                <h3 data-i18n="modal_workers_title">Workers</h3>
+                <ul id="workers-list"></ul>
+                <div class="add-item">
+                    <input type="text" id="new-worker" placeholder="New Worker Name"
+                        data-i18n-placeholder="modal_worker_placeholder">
+                    <button id="add-worker-btn-settings" data-i18n="modal_add_btn">Add</button>
+                </div>
+            </div>
+
+            <div class="settings-section">
+                <h3>Admins</h3>
+                <ul id="admins-list"></ul>
+                <div class="add-item">
+                    <input type="email" id="new-admin" placeholder="New Admin Email">
+                    <button id="add-admin-btn">Add</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="app.js"></script>
+    <script>
+        // Register Service Worker
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(registration => {
+                        console.log('ServiceWorker registration successful');
+                    })
+                    .catch(err => {
+                        console.log('ServiceWorker registration failed: ', err);
+                    });
+            });
+        }
+    </script>
+</body>
+
+</html>

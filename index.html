@@ -11,7 +11,9 @@
     <!-- Libraries -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/signature_pad/4.1.7/signature_pad.umd.min.js"></script>
+    <script async defer src="https://apis.google.com/js/api.js"></script>
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 
 <body>
@@ -34,129 +36,249 @@
                     <span id="user-display-name" style="margin-right: 10px; font-weight: bold;"></span>
                     <button id="settings-btn" aria-label="Settings" data-i18n="manage_lists" class="hidden">⚙️ Manage
                         Lists</button>
+                    <button id="review-reports-btn" class="hidden" style="background-color: #ff9800;"
+                        data-i18n="reviews_list_title">📋 Reviews</button>
                     <button id="logout-btn" style="background-color: #f44336; margin-left: 5px;">Logout</button>
                 </div>
             </div>
         </header>
 
-        <form id="report-form">
-            <!-- Header Info -->
-            <div class="section header-info">
-                <div class="form-group">
-                    <label for="report-date" data-i18n="date_label">Date:</label>
-                    <input type="date" id="report-date" required>
-                </div>
-                <div class="form-group">
-                    <label for="project-select" data-i18n="project_label">Project:</label>
-                    <div class="input-with-action">
-                        <input type="text" list="project-options" id="project-select"
-                            placeholder="Select or Type Project" data-i18n-placeholder="project_placeholder" required>
-                        <datalist id="project-options"></datalist>
-                        <!-- Allows typing a new one if needed, or we manage it in settings -->
+        <!-- Tab Navigation -->
+        <div class="tab-nav">
+            <button class="tab-btn active" data-tab="daily-reports">Daily Reports</button>
+            <button class="tab-btn" data-tab="incident-reports">Incident Reports</button>
+        </div>
+
+        <!-- DAILY REPORTS TAB -->
+        <div id="daily-reports-tab" class="tab-content active">
+            <form id="report-form">
+                <!-- Header Info -->
+                <div class="section header-info">
+                    <div class="form-group">
+                        <label for="report-date" data-i18n="date_label">Date:</label>
+                        <input type="date" id="report-date" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="project-select" data-i18n="project_label">Project:</label>
+                        <div class="input-with-action">
+                            <input type="text" list="project-options" id="project-select"
+                                placeholder="Select or Type Project" data-i18n-placeholder="project_placeholder"
+                                required>
+                            <datalist id="project-options"></datalist>
+                            <!-- Allows typing a new one if needed, or we manage it in settings -->
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="foreman" data-i18n="foreman_label">Foreman / Project Lead:</label>
+                        <input type="text" id="foreman" placeholder="Blayne Nusbaum / Stuart Dundas"
+                            data-i18n-placeholder="foreman_placeholder" required>
                     </div>
                 </div>
-                <div class="form-group">
-                    <label for="foreman" data-i18n="foreman_label">Foreman / Project Lead:</label>
-                    <input type="text" id="foreman" placeholder="Blayne Nusbaum / Stuart Dundas"
-                        data-i18n-placeholder="foreman_placeholder" required>
-                </div>
-            </div>
 
-            <!-- Crew Members -->
-            <div class="section">
-                <h2 data-i18n="crew_title">Crew Members & Hours</h2>
-                <div class="table-wrapper">
-                    <table id="crew-table">
-                        <thead>
-                            <tr>
-                                <th data-i18n="table_name">Name</th>
-                                <th data-i18n="table_time_in">Time In</th>
-                                <th data-i18n="table_time_out">Time Out</th>
-                                <th data-i18n="table_hours">Hours</th>
-                                <th data-i18n="table_action">Action</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <!-- Rows added dynamically -->
-                        </tbody>
-                    </table>
+                <!-- Crew Members -->
+                <div class="section">
+                    <h2 data-i18n="crew_title">Crew Members & Hours</h2>
+                    <div class="table-wrapper">
+                        <table id="crew-table">
+                            <thead>
+                                <tr>
+                                    <th data-i18n="table_name">Name</th>
+                                    <th data-i18n="table_time_in">Time In</th>
+                                    <th data-i18n="table_time_out">Time Out</th>
+                                    <th data-i18n="table_hours">Hours</th>
+                                    <th data-i18n="table_action">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Rows added dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="crew-actions">
+                        <select id="worker-select">
+                            <option value="" data-i18n="select_worker_default">Select Worker to Add</option>
+                        </select>
+                        <button type="button" id="add-worker-btn" data-i18n="add_worker_btn">Add Worker</button>
+                    </div>
                 </div>
-                <div class="crew-actions">
-                    <select id="worker-select">
-                        <option value="" data-i18n="select_worker_default">Select Worker to Add</option>
+
+                <!-- Report Body -->
+                <div class="section">
+                    <h2 data-i18n="work_performed_title">Work Performed Today</h2>
+                    <textarea id="work-performed" rows="4"></textarea>
+                </div>
+
+                <div class="section">
+                    <h2 data-i18n="equipment_title">Equipment Used / Issues</h2>
+                    <textarea id="equipment" rows="3"></textarea>
+                </div>
+
+                <div class="section">
+                    <h2 data-i18n="hauling_title">Hauling / Dumpsters</h2>
+                    <textarea id="hauling" rows="2"></textarea>
+                </div>
+
+                <div class="section">
+                    <h2 data-i18n="safety_title">Safety Topics / Incidents</h2>
+                    <textarea id="safety" rows="2" data-i18n="safety_placeholder">No incidents reported.</textarea>
+                </div>
+
+                <div class="section">
+                    <h2 data-i18n="delays_title">Delays / Problems / Needs</h2>
+                    <textarea id="delays" rows="2"></textarea>
+                </div>
+
+                <div class="section">
+                    <h2 data-i18n="photos_title">Photos Sent</h2>
+                    <select id="photos-sent">
+                        <option value="Yes." data-i18n="yes">Yes.</option>
+                        <option value="No." data-i18n="no">No.</option>
                     </select>
-                    <button type="button" id="add-worker-btn" data-i18n="add_worker_btn">Add Worker</button>
                 </div>
-            </div>
 
-            <!-- Report Body -->
-            <div class="section">
-                <h2 data-i18n="work_performed_title">Work Performed Today</h2>
-                <textarea id="work-performed" rows="4"></textarea>
-            </div>
-
-            <div class="section">
-                <h2 data-i18n="equipment_title">Equipment Used / Issues</h2>
-                <textarea id="equipment" rows="3"></textarea>
-            </div>
-
-            <div class="section">
-                <h2 data-i18n="hauling_title">Hauling / Dumpsters</h2>
-                <textarea id="hauling" rows="2"></textarea>
-            </div>
-
-            <div class="section">
-                <h2 data-i18n="safety_title">Safety Topics / Incidents</h2>
-                <textarea id="safety" rows="2" data-i18n="safety_placeholder">No incidents reported.</textarea>
-            </div>
-
-            <div class="section">
-                <h2 data-i18n="delays_title">Delays / Problems / Needs</h2>
-                <textarea id="delays" rows="2"></textarea>
-            </div>
-
-            <div class="section">
-                <h2 data-i18n="photos_title">Photos Sent</h2>
-                <select id="photos-sent">
-                    <option value="Yes." data-i18n="yes">Yes.</option>
-                    <option value="No." data-i18n="no">No.</option>
-                </select>
-            </div>
-
-            <!-- Time In / Time Out Footer -->
-            <div class="section">
-                <h2 data-i18n="time_footer_title">Time In / Time Out</h2>
-                <div class="time-row">
-                    <div class="form-group">
-                        <label for="general-time-in" data-i18n="time_in_label">Time In</label>
-                        <input type="time" id="general-time-in" value="08:00">
-                    </div>
-                    <div class="form-group">
-                        <label for="general-time-out" data-i18n="time_out_label">Time Out</label>
-                        <input type="time" id="general-time-out" value="16:30">
+                <!-- Time In / Time Out Footer -->
+                <div class="section">
+                    <h2 data-i18n="time_footer_title">Time In / Time Out</h2>
+                    <div class="time-row">
+                        <div class="form-group">
+                            <label for="general-time-in" data-i18n="time_in_label">Time In</label>
+                            <input type="time" id="general-time-in" value="08:00">
+                        </div>
+                        <div class="form-group">
+                            <label for="general-time-out" data-i18n="time_out_label">Time Out</label>
+                            <input type="time" id="general-time-out" value="16:30">
+                        </div>
                     </div>
                 </div>
+
+                <!-- Signature -->
+                <div class="section">
+                    <h2 data-i18n="signature_title">Foreman / Project Lead Signature</h2>
+                    <div class="signature-wrapper">
+                        <canvas id="signature-pad"></canvas>
+                    </div>
+                    <div class="signature-actions">
+                        <button type="button" id="clear-signature" data-i18n="clear_btn">Clear</button>
+                        <button type="button" id="save-signature" data-i18n="save_btn">Save</button>
+                        <button type="button" id="load-signature" data-i18n="load_saved_btn">Load Saved
+                            Signature</button>
+                        <button type="button" id="delete-signature" data-i18n="delete_saved_btn">Delete Saved</button>
+                    </div>
+                </div>
+
+                <div class="actions">
+                    <button type="submit" id="generate-pdf" data-i18n="generate_pdf_btn">Generate PDF</button>
+                    <button type="button" id="share-pdf" class="hidden" data-i18n="share_pdf_btn">Share PDF</button>
+                </div>
+            </form>
+        </div>
+
+        <!-- INCIDENT REPORTS TAB -->
+        <div id="incident-reports-tab" class="tab-content">
+            <form id="incident-form">
+                <div class="section header-info">
+                    <div class="form-group">
+                        <label for="incident-date">Date of Incident:</label>
+                        <input type="date" id="incident-date" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="incident-project">Project / Location:</label>
+                        <input type="text" id="incident-project" list="project-options"
+                            placeholder="Select or Type Project" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="incident-foreman">Foreman / Lead:</label>
+                        <input type="text" id="incident-foreman" placeholder="Your Name" required>
+                    </div>
+                </div>
+
+                <div class="section">
+                    <h2>Incident Details</h2>
+                    <div class="form-group">
+                        <label for="incident-description">Description of Incident:</label>
+                        <textarea id="incident-description" rows="6"
+                            placeholder="Describe what happened, who was involved, and any immediate actions taken."
+                            required></textarea>
+                    </div>
+                </div>
+
+                <div class="section">
+                    <h2>Photos</h2>
+                    <div class="form-group">
+                        <label for="incident-photos" class="file-upload-label">
+                            <span>📷 Attach Photos</span>
+                            <input type="file" id="incident-photos" multiple accept="image/*" style="display: none;">
+                        </label>
+                        <div id="photo-preview-list" class="photo-list"></div>
+                    </div>
+                </div>
+
+                <div class="section">
+                    <h2>Signature</h2>
+                    <div class="signature-wrapper">
+                        <canvas id="incident-signature-pad"></canvas>
+                    </div>
+                    <div class="signature-actions">
+                        <button type="button" id="clear-incident-signature">Clear</button>
+                    </div>
+                </div>
+
+                <div class="actions">
+                    <button type="submit" id="submit-incident-btn">Submit Report</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Admin Selection Modal -->
+    <div id="admin-select-modal" class="modal hidden">
+        <div class="modal-content">
+            <span class="close-modal" id="close-admin-modal">&times;</span>
+            <h2>Select Admin to Notify</h2>
+            <p>Please select an admin to review and sign off on this incident report.</p>
+            <ul id="admin-select-list" class="admin-list">
+                <!-- Populated dynamically -->
+            </ul>
+        </div>
+    </div>
+
+    <!-- Admin Reviews List Modal -->
+    <div id="reviews-list-modal" class="modal hidden">
+        <div class="modal-content">
+            <span class="close-modal" id="close-reviews-list">&times;</span>
+            <h2>Pending Incident Reports</h2>
+            <ul id="pending-reports-list" class="admin-list">
+                <!-- Populated dynamically -->
+            </ul>
+        </div>
+    </div>
+
+    <!-- Detailed Report Review Modal -->
+    <div id="report-review-modal" class="modal hidden" style="z-index: 1001;">
+        <div class="modal-content" style="max-width: 800px;">
+            <span class="close-modal" id="close-report-review">&times;</span>
+            <h2>Review Incident Report</h2>
+            <div id="review-content" class="review-content">
+                <!-- Report details rendered here -->
             </div>
 
-            <!-- Signature -->
             <div class="section">
-                <h2 data-i18n="signature_title">Foreman / Project Lead Signature</h2>
+                <h3>Admin Action</h3>
                 <div class="signature-wrapper">
-                    <canvas id="signature-pad"></canvas>
+                    <canvas id="admin-signature-pad"></canvas>
                 </div>
                 <div class="signature-actions">
-                    <button type="button" id="clear-signature" data-i18n="clear_btn">Clear</button>
-                    <button type="button" id="save-signature" data-i18n="save_btn">Save</button>
-                    <button type="button" id="load-signature" data-i18n="load_saved_btn">Load Saved Signature</button>
-                    <button type="button" id="delete-signature" data-i18n="delete_saved_btn">Delete Saved</button>
+                    <button type="button" id="clear-admin-signature">Clear</button>
+                </div>
+                <textarea id="admin-note" rows="3" placeholder="Notes (required for revision request)"></textarea>
+                <div class="actions" style="margin-top: 10px;">
+                    <button id="approve-report-btn" style="background-color: var(--btn-success);">Approve &
+                        Sign</button>
+                    <button id="request-revision-btn" style="background-color: var(--btn-danger);">Request
+                        Revision</button>
                 </div>
             </div>
-
-            <div class="actions">
-                <button type="submit" id="generate-pdf" data-i18n="generate_pdf_btn">Generate PDF</button>
-                <button type="button" id="share-pdf" class="hidden" data-i18n="share_pdf_btn">Share PDF</button>
-            </div>
-        </form>
+        </div>
     </div>
 
     <!-- Settings Modal -->

@@ -33,3 +33,17 @@ export function isNameInList(list, nameToCheck) {
     if (!list || !nameToCheck) return false;
     return list.some(item => item.name === nameToCheck);
 }
+
+/**
+ * Validates the incident report form data.
+ * @param {Object} data - The form data.
+ * @returns {Object} - { valid: boolean, error: string }
+ */
+export function validateIncidentForm(data) {
+    if (!data.date) return { valid: false, error: "Please select a date." };
+    if (!data.project) return { valid: false, error: "Please enter a project." };
+    if (!data.foreman) return { valid: false, error: "Please enter a foreman." };
+    if (!data.description) return { valid: false, error: "Please enter a description." };
+    if (!data.hasSignature) return { valid: false, error: "Please sign the report." };
+    return { valid: true };
+}
