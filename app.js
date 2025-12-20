@@ -15,7 +15,9 @@ import {
 
 document.addEventListener('DOMContentLoaded', () => {
     // Check if Firebase is configured
-    if (app.options.apiKey === "YOUR_API_KEY") {
+    const isConfigured = app.options.apiKey !== "YOUR_API_KEY";
+
+    if (!isConfigured) {
         const container = document.querySelector('.container');
         const alertDiv = document.createElement('div');
         alertDiv.style.backgroundColor = '#ffcc00';
@@ -25,26 +27,29 @@ document.addEventListener('DOMContentLoaded', () => {
         alertDiv.style.borderRadius = '5px';
         alertDiv.style.textAlign = 'center';
         alertDiv.style.fontWeight = 'bold';
-        alertDiv.innerHTML = '⚠️ Firebase Setup Required: Please update <code style="background:rgba(255,255,255,0.5);padding:2px 4px;border-radius:3px;">firebase-config.js</code> using instructions in <code>FIREBASE_SETUP.md</code> to enable cloud features.';
+        alertDiv.innerHTML = '⚠️ Firebase Setup Required: App is running in <span style="text-decoration: underline;">Offline/Local Mode</span>. Update <code style="background:rgba(255,255,255,0.5);padding:2px 4px;border-radius:3px;">firebase-config.js</code> to enable cloud sync.';
 
         container.insertBefore(alertDiv, container.firstChild);
     }
+
     // --- State Management ---
-    // Arrays now hold objects from Firestore
+    // Arrays now hold objects
     // workers: [{ id: '...', name: '...' }]
     // projects: [{ id: '...', name: '...', defaultForeman: '...' }]
     let workers = [];
     let projects = [];
 
-    // Enable Offline Persistence
-    enableIndexedDbPersistence(db)
-        .catch((err) => {
-            if (err.code == 'failed-precondition') {
-                console.log('Persistence failed: Multiple tabs open');
-            } else if (err.code == 'unimplemented') {
-                console.log('Persistence failed: Browser not supported');
-            }
-        });
+    // Only enable Firestore persistence if configured
+    if (isConfigured) {
+        enableIndexedDbPersistence(db)
+            .catch((err) => {
+                if (err.code == 'failed-precondition') {
+                    console.log('Persistence failed: Multiple tabs open');
+                } else if (err.code == 'unimplemented') {
+                    console.log('Persistence failed: Browser not supported');
+                }
+            });
+    }
 
     // --- DOM Elements ---
     const projectSelect = document.getElementById('project-select');
@@ -122,14 +127,48 @@ document.addEventListener('DOMContentLoaded', () => {
         sharePdfBtn.classList.remove('hidden');
     }
 
-    // Initialize Real-time Listeners
-    setupRealtimeListeners();
+    // Initialize Logic based on Configuration
+    if (isConfigured) {
+        setupRealtimeListeners();
+        addMigrationButton();
+        checkFirstTimeUpdate();
+    } else {
+        // Fallback to LocalStorage Mode
+        loadLocalData();
+    }
 
-    // Add Migration Button to Settings
-    addMigrationButton();
 
-    // Check for First-Time Update & Auto-Migrate
-    checkFirstTimeUpdate();
+    // --- Local Storage Fallback Functions ---
+
+    function loadLocalData() {
+        // Load Workers
+        const localWorkers = JSON.parse(localStorage.getItem('atlas_workers') || '[]');
+        workers = localWorkers.map(name => ({ id: name, name: name }));
+        updateWorkerSelect();
+
+        // Load Projects
+        const localProjects = JSON.parse(localStorage.getItem('atlas_projects') || '[]');
+        const localForemen = JSON.parse(localStorage.getItem('atlas_project_foremen') || '{}');
+        projects = localProjects.map(name => ({
+            id: name,
+            name: name,
+            defaultForeman: localForemen[name] || ''
+        }));
+        updateProjectSelect();
+    }
+
+    function saveLocalData() {
+        const wNames = workers.map(w => w.name);
+        const pNames = projects.map(p => p.name);
+        const pForemen = {};
+        projects.forEach(p => {
+            if (p.defaultForeman) pForemen[p.name] = p.defaultForeman;
+        });
+
+        localStorage.setItem('atlas_workers', JSON.stringify(wNames));
+        localStorage.setItem('atlas_projects', JSON.stringify(pNames));
+        localStorage.setItem('atlas_project_foremen', JSON.stringify(pForemen));
+    }
 
 
     // --- Firestore Functions ---
@@ -331,15 +370,22 @@ document.addEventListener('DOMContentLoaded', () => {
             // Update Foreman on Change
             foremanInputSettings.addEventListener('change', async (e) => {
                 const newVal = e.target.value;
-                try {
-                    await updateDoc(doc(db, "projects", p.id), {
-                        defaultForeman: newVal
-                    });
-                    if (projectSelect.value === p.name) {
-                        foremanInput.value = newVal;
+                if (isConfigured) {
+                    try {
+                        await updateDoc(doc(db, "projects", p.id), {
+                            defaultForeman: newVal
+                        });
+                    } catch (err) {
+                        console.error("Error updating foreman:", err);
                     }
-                } catch (err) {
-                    console.error("Error updating foreman:", err);
+                } else {
+                    // Local Fallback
+                    p.defaultForeman = newVal;
+                    saveLocalData();
+                }
+
+                if (projectSelect.value === p.name) {
+                    foremanInput.value = newVal;
                 }
             });
 
@@ -351,10 +397,21 @@ document.addEventListener('DOMContentLoaded', () => {
             delBtn.textContent = 'Delete';
             delBtn.addEventListener('click', async () => {
                 if(confirm(`Delete project "${p.name}"?`)) {
-                    try {
-                        await deleteDoc(doc(db, "projects", p.id));
-                    } catch (err) {
-                        console.error("Error deleting project:", err);
+                    if (isConfigured) {
+                        try {
+                            await deleteDoc(doc(db, "projects", p.id));
+                        } catch (err) {
+                            console.error("Error deleting project:", err);
+                        }
+                    } else {
+                        // Local Fallback
+                        const idx = projects.findIndex(proj => proj.id === p.id);
+                        if (idx > -1) {
+                            projects.splice(idx, 1);
+                            saveLocalData();
+                            renderSettingsLists();
+                            updateProjectSelect();
+                        }
                     }
                 }
             });
@@ -375,10 +432,21 @@ document.addEventListener('DOMContentLoaded', () => {
             delBtn.textContent = 'Delete';
             delBtn.addEventListener('click', async () => {
                 if(confirm(`Delete worker "${w.name}"?`)) {
-                    try {
-                        await deleteDoc(doc(db, "workers", w.id));
-                    } catch (err) {
-                        console.error("Error deleting worker:", err);
+                    if (isConfigured) {
+                        try {
+                            await deleteDoc(doc(db, "workers", w.id));
+                        } catch (err) {
+                            console.error("Error deleting worker:", err);
+                        }
+                    } else {
+                        // Local Fallback
+                        const idx = workers.findIndex(work => work.id === w.id);
+                        if (idx > -1) {
+                            workers.splice(idx, 1);
+                            saveLocalData();
+                            renderSettingsLists();
+                            updateWorkerSelect();
+                        }
                     }
                 }
             });
@@ -410,12 +478,18 @@ document.addEventListener('DOMContentLoaded', () => {
             const projectObj = projects.find(p => p.name === currentProjectName);
             // Only update if the project exists in our list (not a brand new typed one yet)
             if (projectObj) {
-                try {
-                    await updateDoc(doc(db, "projects", projectObj.id), {
-                        defaultForeman: currentForeman
-                    });
-                } catch (err) {
-                    console.error("Error saving foreman:", err);
+                if (isConfigured) {
+                    try {
+                        await updateDoc(doc(db, "projects", projectObj.id), {
+                            defaultForeman: currentForeman
+                        });
+                    } catch (err) {
+                        console.error("Error saving foreman:", err);
+                    }
+                } else {
+                    // Local Fallback
+                    projectObj.defaultForeman = currentForeman;
+                    saveLocalData();
                 }
             }
         }
@@ -472,7 +546,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Add New Project (Cloud)
+    // Add New Project (Cloud/Local)
     addProjectBtn.addEventListener('click', async () => {
         const val = newProjectInput.value.trim();
         if (val) {
@@ -481,20 +555,28 @@ document.addEventListener('DOMContentLoaded', () => {
                 alert("Project already exists!");
                 return;
             }
-            try {
-                await addDoc(collection(db, "projects"), {
-                    name: val,
-                    defaultForeman: ""
-                });
-                newProjectInput.value = '';
-            } catch (err) {
-                console.error("Error adding project:", err);
-                alert("Failed to add project.");
+            if (isConfigured) {
+                try {
+                    await addDoc(collection(db, "projects"), {
+                        name: val,
+                        defaultForeman: ""
+                    });
+                } catch (err) {
+                    console.error("Error adding project:", err);
+                    alert("Failed to add project.");
+                }
+            } else {
+                // Local Fallback
+                projects.push({ id: val, name: val, defaultForeman: "" });
+                saveLocalData();
+                renderSettingsLists();
+                updateProjectSelect();
             }
+            newProjectInput.value = '';
         }
     });
 
-    // Add New Worker (Cloud)
+    // Add New Worker (Cloud/Local)
     addWorkerSettingsBtn.addEventListener('click', async () => {
         const val = newWorkerInput.value.trim();
         if (val) {
@@ -502,15 +584,23 @@ document.addEventListener('DOMContentLoaded', () => {
                 alert("Worker already exists!");
                 return;
             }
-            try {
-                await addDoc(collection(db, "workers"), {
-                    name: val
-                });
-                newWorkerInput.value = '';
-            } catch (err) {
-                console.error("Error adding worker:", err);
-                alert("Failed to add worker.");
+            if (isConfigured) {
+                try {
+                    await addDoc(collection(db, "workers"), {
+                        name: val
+                    });
+                } catch (err) {
+                    console.error("Error adding worker:", err);
+                    alert("Failed to add worker.");
+                }
+            } else {
+                // Local Fallback
+                workers.push({ id: val, name: val });
+                saveLocalData();
+                renderSettingsLists();
+                updateWorkerSelect();
             }
+            newWorkerInput.value = '';
         }
     });
 
