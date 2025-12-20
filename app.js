@@ -73,6 +73,8 @@ function initializeAppLogic() {
             if (isConfigured) {
                 checkUserRole(user.email);
                 setupRealtimeListeners();
+                // Auto-load signature from Cloud if available
+                loadCloudSignature(user.email);
             }
         } else {
             loginOverlay.style.display = 'flex';
@@ -164,6 +166,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const canvas = document.getElementById('signature-pad');
     const clearSignatureBtn = document.getElementById('clear-signature');
     const saveSignatureBtn = document.getElementById('save-signature');
+    const loadSignatureBtn = document.getElementById('load-signature');
     const deleteSignatureBtn = document.getElementById('delete-signature');
     const sharePdfBtn = document.getElementById('share-pdf');
     // const generatePdfBtn = document.getElementById('generate-pdf'); // Not strictly used in JS, handled by form submit
@@ -258,7 +261,9 @@ document.addEventListener('DOMContentLoaded', () => {
         canvas.width = canvas.offsetWidth * ratio;
         canvas.height = canvas.offsetHeight * ratio;
         canvas.getContext("2d").scale(ratio, ratio);
-        loadSignature();
+        // Try local load immediately for speed/offline, 
+        // Cloud load will override it shortly after if logged in.
+        loadLocalSignature();
     }, 100);
 
     // Check for Share Support
@@ -806,7 +811,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // Save Signature
-    saveSignatureBtn.addEventListener('click', () => {
+    saveSignatureBtn.addEventListener('click', async () => {
         if (!signatureHasData) {
             alert("Please sign before saving.");
             return;
@@ -814,41 +819,125 @@ document.addEventListener('DOMContentLoaded', () => {
 
         let data;
         if (cachedBackgroundImage) {
-            data = signaturePad.toDataURL();
+            data = signaturePad.toDataURL(); // Save image as string
         } else {
-            data = JSON.stringify(signaturePad.toData());
+            data = JSON.stringify(signaturePad.toData()); // Save strokes
         }
 
+        // 1. Save Local
         localStorage.setItem('atlas_signature', data);
+
+        // 2. Save Cloud (if logged in & configured)
+        if (isConfigured && auth.currentUser) {
+            try {
+                // We'll store it in the user's document under 'signature' field
+                const userEmail = auth.currentUser.email;
+                await setDoc(doc(db, "users", userEmail), {
+                    signature: data
+                }, { merge: true });
+                console.log("Signature saved to cloud.");
+            } catch (err) {
+                console.error("Error saving signature to cloud:", err);
+                alert("Saved locally, but failed to sync to cloud.");
+            }
+        }
+
         alert("Signature saved!");
     });
 
-    // Delete Saved Signature
-    deleteSignatureBtn.addEventListener('click', () => {
-        localStorage.removeItem('atlas_signature');
-        alert("Saved signature removed.");
+    // Load Saved Signature (Manual Button)
+    loadSignatureBtn.addEventListener('click', async () => {
+        // Try Cloud first if logged in
+        if (isConfigured && auth.currentUser) {
+            const success = await loadCloudSignature(auth.currentUser.email);
+            if (success) {
+                alert("Loaded signature from account.");
+                return;
+            }
+        }
+
+        // Fallback to Local
+        const local = localStorage.getItem('atlas_signature');
+        if (local) {
+            loadSignatureData(local);
+            alert("Loaded signature from device storage.");
+        } else {
+            alert("No saved signature found.");
+        }
     });
 
-    // Load Signature Helper
-    function loadSignature() {
+    // Delete Saved Signature
+    deleteSignatureBtn.addEventListener('click', async () => {
+        if (confirm("Delete saved signature? This will remove it from this device and your account.")) {
+            // 1. Remove Local
+            localStorage.removeItem('atlas_signature');
+
+            // 2. Remove Cloud
+            if (isConfigured && auth.currentUser) {
+                try {
+                    const userEmail = auth.currentUser.email;
+                    // Using updateDoc to delete a specific field is cleaner, 
+                    // but we need to import deleteField if we want to do that strictly.
+                    // For now, setting it to null or empty string is often sufficient, 
+                    // but let's try to just update it to null.
+                    await setDoc(doc(db, "users", userEmail), {
+                        signature: null
+                    }, { merge: true });
+                } catch (err) {
+                    console.error("Error deleting cloud signature:", err);
+                }
+            }
+            alert("Saved signature removed.");
+        }
+    });
+
+    // Load Signature Helper (Logic only)
+    function loadSignatureData(dataString) {
+        if (!dataString) return;
+
+        signaturePad.clear();
+        if (dataString.trim().startsWith('[')) {
+            try {
+                const points = JSON.parse(dataString);
+                signaturePad.fromData(points);
+                signatureHasData = true;
+                cachedVectorData = points;
+                cachedBackgroundImage = null;
+            } catch (e) {
+                console.error("Error loading signature data", e);
+            }
+        } else {
+            signaturePad.fromDataURL(dataString);
+            signatureHasData = true;
+            cachedBackgroundImage = dataString;
+            cachedVectorData = [];
+        }
+    }
+
+    // Load Cloud Signature Helper
+    async function loadCloudSignature(email) {
+        try {
+            const userDoc = await getDoc(doc(db, "users", email));
+            if (userDoc.exists()) {
+                const data = userDoc.data();
+                if (data.signature) {
+                    loadSignatureData(data.signature);
+                    // Also update local storage to keep them in sync
+                    localStorage.setItem('atlas_signature', data.signature);
+                    return true;
+                }
+            }
+        } catch (err) {
+            console.error("Error loading cloud signature:", err);
+        }
+        return false;
+    }
+
+    // Initial Load (Local fallback on startup)
+    function loadLocalSignature() {
         const saved = localStorage.getItem('atlas_signature');
         if (saved) {
-            if (saved.trim().startsWith('[')) {
-                try {
-                    const points = JSON.parse(saved);
-                    signaturePad.fromData(points);
-                    signatureHasData = true;
-                    cachedVectorData = points;
-                    cachedBackgroundImage = null;
-                } catch (e) {
-                    console.error("Error loading signature data", e);
-                }
-            } else {
-                signaturePad.fromDataURL(saved);
-                signatureHasData = true;
-                cachedBackgroundImage = saved;
-                cachedVectorData = [];
-            }
+            loadSignatureData(saved);
         }
     }
 
