@@ -217,6 +217,37 @@ document.addEventListener('DOMContentLoaded', () => {
         updateLanguage(currentLang);
     }
 
+    // --- Hamburger Menu Logic ---
+    const hamburgerBtn = document.getElementById('hamburger-btn');
+    const navMenu = document.getElementById('nav-menu');
+
+    if (hamburgerBtn && navMenu) {
+        hamburgerBtn.addEventListener('click', (e) => {
+            e.stopPropagation(); // Prevent triggering the window click listener immediately
+            navMenu.classList.toggle('open');
+        });
+
+        // Close menu when clicking outside
+        window.addEventListener('click', (e) => {
+            // If menu is open and click is NOT on the menu or the button
+            if (navMenu.classList.contains('open') &&
+                !navMenu.contains(e.target) &&
+                e.target !== hamburgerBtn) {
+                navMenu.classList.remove('open');
+            }
+        });
+
+        // Close menu when a link inside it is clicked (optional but good for UX)
+        navMenu.querySelectorAll('button').forEach(btn => {
+            btn.addEventListener('click', () => {
+                // Don't close if it's the settings button as that opens a modal, 
+                // but actually it might be fine to close the menu behind the modal.
+                // Let's close it.
+                navMenu.classList.remove('open');
+            });
+        });
+    }
+
     // --- Initialization ---
     // Set today's date
     dateInput.valueAsDate = new Date();

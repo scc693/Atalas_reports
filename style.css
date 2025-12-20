@@ -443,6 +443,8 @@ button#generate-pdf {
     display: flex;
     gap: 10px;
     align-items: center;
+    position: relative;
+    /* For absolute positioning of nav-menu on mobile */
 }
 
 #lang-btn {
@@ -456,8 +458,85 @@ button#generate-pdf {
     background-color: var(--border-light);
 }
 
+/* Hamburger Menu Default (Mobile) */
+#hamburger-btn {
+    display: block;
+    background: none;
+    border: 1px solid var(--border-color);
+    color: var(--text-main);
+    font-size: 1.5rem;
+    padding: 5px 10px;
+    cursor: pointer;
+}
+
+#nav-menu {
+    display: none;
+    /* Hidden by default on mobile */
+    position: absolute;
+    top: 100%;
+    right: 0;
+    background-color: var(--bg-container);
+    border: 1px solid var(--border-color);
+    box-shadow: 0 4px 6px var(--shadow-color);
+    flex-direction: column;
+    padding: 10px;
+    z-index: 1000;
+    width: 200px;
+    gap: 10px;
+}
+
+#nav-menu.open {
+    display: flex;
+}
+
+#nav-menu button {
+    width: 100%;
+    margin-left: 0 !important;
+    /* Override inline styles if any */
+    text-align: left;
+}
+
+#user-display-name {
+    display: block;
+    padding: 5px 10px;
+    border-bottom: 1px solid var(--border-light);
+    margin-bottom: 5px;
+}
+
 /* Desktop / Tablet Responsiveness */
 @media (min-width: 768px) {
+    #hamburger-btn {
+        display: none;
+    }
+
+    #nav-menu {
+        display: flex;
+        position: static;
+        flex-direction: row;
+        border: none;
+        box-shadow: none;
+        padding: 0;
+        width: auto;
+        background: none;
+        align-items: center;
+        gap: 10px;
+    }
+
+    #nav-menu.open {
+        display: flex;
+        /* Ensure it stays visible */
+    }
+
+    #user-display-name {
+        border-bottom: none;
+        margin-bottom: 0;
+        padding: 0;
+    }
+
+    #logout-btn {
+        margin-left: 5px !important;
+    }
+
     .container {
         max-width: 1024px;
         /* Increase max-width for larger screens */
@@ -486,9 +565,12 @@ button#generate-pdf {
 
     /* Grid Spans */
     .section.header-info,
-    .section:has(h2[data-i18n="crew_title"]), /* Crew Members */
-    .section:has(h2[data-i18n="work_performed_title"]), /* Work Performed */
-    .section:has(h2[data-i18n="signature_title"]), /* Signature */
+    .section:has(h2[data-i18n="crew_title"]),
+    /* Crew Members */
+    .section:has(h2[data-i18n="work_performed_title"]),
+    /* Work Performed */
+    .section:has(h2[data-i18n="signature_title"]),
+    /* Signature */
     .actions {
         grid-column: span 2;
     }
@@ -496,23 +578,23 @@ button#generate-pdf {
     /* Specific adjustment for Time In/Out to ensure it fits nicely or spans if desired. 
        Plan said Span 1, but let's see. If it feels tight we can span 2. 
        For now, let it be 1 column (default) which puts it next to Photos Sent or Delays. */
-    
+
     /* Ensure textareas in half-width columns are tall enough */
     textarea {
         resize: vertical;
     }
-    
+
     /* Actions - horizontal alignment */
     .actions {
         flex-direction: row;
         justify-content: flex-end;
     }
-    
+
     #generate-pdf {
         width: auto;
         min-width: 200px;
     }
-    
+
     #share-pdf {
         width: auto;
         margin-top: 0;
