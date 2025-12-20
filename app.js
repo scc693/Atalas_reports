@@ -1,4 +1,4 @@
-import { db, app } from './firebase-config.js';
+import { db, app, auth } from './firebase-config.js';
 import {
     collection,
     addDoc,
@@ -10,14 +10,92 @@ import {
     query,
     orderBy,
     getDocs,
-    where
+    where,
+    getDoc,
+    setDoc
 } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js";
+import {
+    signInWithPopup,
+    GoogleAuthProvider,
+    onAuthStateChanged,
+    signOut
+} from "https://www.gstatic.com/firebasejs/12.7.0/firebase-auth.js";
 import { formatTime, removeFromList, isNameInList } from './utils.js';
+import { translations } from './translations.js';
 
-document.addEventListener('DOMContentLoaded', () => {
-    // Check if Firebase is configured
-    const isConfigured = app.options.apiKey !== "YOUR_API_KEY";
+// Main Execution
+const isConfigured = app.options.apiKey !== "YOUR_API_KEY";
 
+// --- DOM Elements & Auth Setup ---
+function initializeAppLogic() {
+    const loginOverlay = document.getElementById('login-overlay');
+    const appContent = document.getElementById('app-content');
+    const googleLoginBtn = document.getElementById('google-login-btn');
+    const logoutBtn = document.getElementById('logout-btn');
+    const userDisplayName = document.getElementById('user-display-name');
+    const settingsBtn = document.getElementById('settings-btn'); // defined here for scope
+
+    if (!googleLoginBtn) {
+        console.error("Login button not found! Retrying in 500ms...");
+        setTimeout(initializeAppLogic, 500);
+        return;
+    }
+
+    // --- Auth Logic ---
+    const provider = new GoogleAuthProvider();
+
+    googleLoginBtn.addEventListener('click', () => {
+        console.log("Login button clicked"); // Debug log
+        signInWithPopup(auth, provider)
+            .then((result) => {
+                console.log("User signed in:", result.user);
+            }).catch((error) => {
+                console.error("Login failed:", error);
+                alert("Login failed: " + error.message);
+            });
+    });
+
+    logoutBtn.addEventListener('click', () => {
+        signOut(auth).then(() => {
+            console.log("User signed out");
+            window.location.reload();
+        }).catch((error) => {
+            console.error("Logout failed:", error);
+        });
+    });
+
+    onAuthStateChanged(auth, async (user) => {
+        if (user) {
+            loginOverlay.style.display = 'none';
+            appContent.classList.remove('hidden');
+            userDisplayName.textContent = user.email;
+
+            if (isConfigured) {
+                checkUserRole(user.email);
+                setupRealtimeListeners();
+            }
+        } else {
+            loginOverlay.style.display = 'flex';
+            appContent.classList.add('hidden');
+            userDisplayName.textContent = '';
+        }
+    });
+
+    async function checkUserRole(email) {
+        try {
+            const userDoc = await getDoc(doc(db, "users", email));
+            if (userDoc.exists() && userDoc.data().role === 'admin') {
+                settingsBtn.classList.remove('hidden');
+            } else {
+                settingsBtn.classList.add('hidden');
+            }
+        } catch (error) {
+            console.error("Error checking role:", error);
+            settingsBtn.classList.add('hidden');
+        }
+    }
+
+    // Config Warning
     if (!isConfigured) {
         const container = document.querySelector('.container');
         const alertDiv = document.createElement('div');
@@ -30,8 +108,24 @@ document.addEventListener('DOMContentLoaded', () => {
         alertDiv.style.fontWeight = 'bold';
         alertDiv.innerHTML = '⚠️ Firebase Setup Required: App is running in <span style="text-decoration: underline;">Offline/Local Mode</span>. Update <code style="background:rgba(255,255,255,0.5);padding:2px 4px;border-radius:3px;">firebase-config.js</code> to enable cloud sync.';
 
-        container.insertBefore(alertDiv, container.firstChild);
+        // Insert after header or at top of container
+        if (container && container.firstChild) {
+            container.insertBefore(alertDiv, container.firstChild);
+        }
     }
+}
+
+// Initialize when ready
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializeAppLogic);
+} else {
+    initializeAppLogic();
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    // Other DOM dependant logic (like tables etc) can stay here or be moved if needed
+    // For now we keep the previous structure but Auth is handled above.
+
 
     // --- State Management ---
     // Arrays now hold objects
@@ -75,6 +169,50 @@ document.addEventListener('DOMContentLoaded', () => {
     // const generatePdfBtn = document.getElementById('generate-pdf'); // Not strictly used in JS, handled by form submit
     const dateInput = document.getElementById('report-date');
     const foremanInput = document.getElementById('foreman');
+
+    // --- Internationalization ---
+    let currentLang = localStorage.getItem('atlas_lang') || 'en';
+    const langBtn = document.getElementById('lang-btn');
+
+    function updateLanguage(lang) {
+        currentLang = lang;
+        localStorage.setItem('atlas_lang', lang);
+
+        // Update Text Content
+        document.querySelectorAll('[data-i18n]').forEach(el => {
+            const key = el.getAttribute('data-i18n');
+            if (translations[lang] && translations[lang][key]) {
+                el.textContent = translations[lang][key];
+            }
+        });
+
+        // Update Placeholders
+        document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+            const key = el.getAttribute('data-i18n-placeholder');
+            if (translations[lang] && translations[lang][key]) {
+                el.placeholder = translations[lang][key];
+            }
+        });
+
+        // Update Language Button Text
+        if (langBtn) {
+            if (lang === 'en') {
+                langBtn.textContent = 'Español';
+            } else {
+                langBtn.textContent = 'English';
+            }
+        }
+    }
+
+    if (langBtn) {
+        langBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            const newLang = currentLang === 'en' ? 'es' : 'en';
+            updateLanguage(newLang);
+        });
+        // Initial Load
+        updateLanguage(currentLang);
+    }
 
     // --- Initialization ---
     // Set today's date
@@ -175,6 +313,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Firestore Functions ---
 
     function setupRealtimeListeners() {
+        // Prevent multiple listeners if called multiple times (though Auth state usually stable)
         // Workers Listener
         const qWorkers = query(collection(db, "workers"), orderBy("name"));
         onSnapshot(qWorkers, (snapshot) => {
@@ -279,7 +418,15 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function updateWorkerSelect() {
-        workerSelect.innerHTML = '<option value="">Select Worker to Add</option>';
+        // Get correct text for current language
+        let defaultText = "Select Worker to Add";
+        if (translations[currentLang] && translations[currentLang]["select_worker_default"]) {
+            defaultText = translations[currentLang]["select_worker_default"];
+        }
+
+        // Re-create the default option with data-i18n attribute
+        workerSelect.innerHTML = `<option value="" data-i18n="select_worker_default">${defaultText}</option>`;
+
         workers.forEach(w => {
             const option = document.createElement('option');
             option.value = w.name;
@@ -419,6 +566,87 @@ document.addEventListener('DOMContentLoaded', () => {
             li.appendChild(delBtn);
             workersList.appendChild(li);
         });
+
+        // Admins
+        const adminsList = document.getElementById('admins-list');
+        const newAdminInput = document.getElementById('new-admin');
+        const addAdminBtn = document.getElementById('add-admin-btn');
+
+        // Clear previous listeners to avoid duplicates if re-rendered (simple approach)
+        const newAddBtn = addAdminBtn.cloneNode(true);
+        addAdminBtn.parentNode.replaceChild(newAddBtn, addAdminBtn);
+
+        newAddBtn.addEventListener('click', async () => {
+            const email = newAdminInput.value.trim();
+            if (email) {
+                if (isConfigured) {
+                    try {
+                        // Use email as doc ID
+                        await setDoc(doc(db, "users", email), {
+                            role: "admin"
+                        });
+                        alert(`Admin ${email} added.`);
+                        renderSettingsLists(); // re-render to update list
+                    } catch (err) {
+                        console.error("Error adding admin:", err);
+                        alert("Failed to add admin. Ensure you have permission.");
+                    }
+                } else {
+                    alert("Admin management only works in cloud mode.");
+                }
+                newAdminInput.value = '';
+            }
+        });
+
+        adminsList.innerHTML = 'Loading...';
+
+        if (isConfigured) {
+            const qAdmins = query(collection(db, "users"), where("role", "==", "admin"));
+            getDocs(qAdmins).then((snapshot) => {
+                adminsList.innerHTML = '';
+                snapshot.forEach((userDoc) => {
+                    const email = userDoc.id;
+                    const li = document.createElement('li');
+                    li.innerHTML = `<span>${email}</span>`;
+
+                    const delBtn = document.createElement('button');
+                    delBtn.className = 'delete-btn';
+                    delBtn.textContent = 'Delete';
+
+                    if (snapshot.size <= 1) {
+                        delBtn.disabled = true;
+                        delBtn.style.opacity = '0.5';
+                        delBtn.style.cursor = 'not-allowed';
+                        delBtn.title = "Cannot delete the last admin";
+                    }
+
+                    delBtn.addEventListener('click', async () => {
+                        if (snapshot.size <= 1) {
+                            alert("Cannot remove the last admin.");
+                            return;
+                        }
+
+                        if (confirm(`Remove admin privileges for "${email}"?`)) {
+                            try {
+                                await deleteDoc(doc(db, "users", email));
+                                renderSettingsLists();
+                            } catch (err) {
+                                console.error("Error deleting admin:", err);
+                                alert("Failed to remove admin.");
+                            }
+                        }
+                    });
+
+                    li.appendChild(delBtn);
+                    adminsList.appendChild(li);
+                });
+            }).catch(err => {
+                console.error("Error fetching admins:", err);
+                adminsList.innerHTML = 'Error loading admins.';
+            });
+        } else {
+            adminsList.innerHTML = 'Not available in offline mode.';
+        }
     }
 
 
