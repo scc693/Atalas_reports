@@ -1,6 +1,8 @@
 export const translations = {
     "en": {
-        "app_title": "Atlas Daily Report",
+        "app_title": "Atlas Reports",
+        "tab_daily": "Daily Reports",
+        "tab_incident": "Incident Reports",
         "manage_lists": "⚙️ Manage Lists",
         "date_label": "Date:",
         "project_label": "Project:",
@@ -53,7 +55,9 @@ export const translations = {
         "admin_select_desc": "Please select an admin to review and sign off on this incident report."
     },
     "es": {
-        "app_title": "Informe Diario Atlas",
+        "app_title": "Informes Atlas",
+        "tab_daily": "Informes Diarios",
+        "tab_incident": "Informes de Incidentes",
         "manage_lists": "⚙️ Gestionar Listas",
         "date_label": "Fecha:",
         "project_label": "Proyecto:",

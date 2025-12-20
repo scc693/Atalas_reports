@@ -645,3 +645,61 @@ button#generate-pdf {
     font-weight: bold;
     color: var(--btn-blue);
 }
+
+/* Hamburger Menu */
+#hamburger-btn {
+    display: none;
+    background: none;
+    border: none;
+    color: var(--text-main);
+    font-size: 1.5rem;
+    cursor: pointer;
+    padding: 5px;
+}
+
+#nav-menu {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+/* Mobile Responsive Header */
+@media (max-width: 767px) {
+    #hamburger-btn {
+        display: block;
+        order: 2;
+        /* After title */
+    }
+
+    /* Hide normal nav items on mobile by default */
+    #nav-menu {
+        display: none;
+        flex-direction: column;
+        position: absolute;
+        top: 60px;
+        /* Below header */
+        right: 0;
+        background-color: var(--bg-container);
+        width: 100%;
+        padding: 20px;
+        box-shadow: 0 5px 10px var(--shadow-color);
+        z-index: 1000;
+        border-bottom: 2px solid var(--primary-color);
+    }
+
+    #nav-menu.open {
+        display: flex;
+    }
+
+    #nav-menu button {
+        width: 100%;
+        text-align: left;
+        padding: 15px;
+        border-bottom: 1px solid var(--border-light);
+    }
+
+    .header-actions {
+        /* On mobile, this container isn't needed or wraps */
+        display: contents;
+    }
+}
