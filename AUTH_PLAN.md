@@ -51,3 +51,33 @@ To add Google Sign-In and restrict access to the application, we would need to p
 
 ## 4. (Optional) User Whitelisting
 *   If you want to restrict access to *specific* Google accounts (e.g., only your company email), we would add a check in the code or security rules to verify `request.auth.token.email` matches an allowed domain or list.
+
+## 5. Role-Based Access Control (Permissions)
+To handle different permission levels (e.g., "Standard User" vs. "Admin"), we would implement the following:
+
+### A. Database Structure
+*   Create a `users` collection in Firestore.
+*   Each document would correspond to a user's email or ID and store their role:
+    ```json
+    // users/jane@example.com
+    {
+      "role": "admin"
+    }
+    // users/joe@example.com
+    {
+      "role": "standard"
+    }
+    ```
+
+### B. Security Rules Update
+*   **Standard Users:** Can `read` the `workers` and `projects` lists (to populate dropdowns) but cannot `write` (add/delete).
+*   **Admins:** Can `read` and `write` to all collections.
+    ```
+    match /workers/{worker} {
+      allow read: if request.auth != null;
+      allow write: if get(/databases/$(database)/documents/users/$(request.auth.token.email)).data.role == 'admin';
+    }
+    ```
+
+### C. UI Adjustments
+*   The "Manage Lists" button would be hidden or disabled for users who do not have the 'admin' role.
