@@ -178,35 +178,37 @@
             <form id="incident-form">
                 <div class="section header-info">
                     <div class="form-group">
-                        <label for="incident-date">Date of Incident:</label>
+                        <label for="incident-date" data-i18n="incident_date_label">Date of Incident:</label>
                         <input type="date" id="incident-date" required>
                     </div>
                     <div class="form-group">
-                        <label for="incident-project">Project / Location:</label>
+                        <label for="incident-project" data-i18n="incident_project_label">Project / Location:</label>
                         <input type="text" id="incident-project" list="project-options"
-                            placeholder="Select or Type Project" required>
+                            placeholder="Select or Type Project" data-i18n-placeholder="project_placeholder" required>
                     </div>
                     <div class="form-group">
-                        <label for="incident-foreman">Foreman / Lead:</label>
-                        <input type="text" id="incident-foreman" placeholder="Your Name" required>
+                        <label for="incident-foreman" data-i18n="incident_foreman_label">Foreman / Lead:</label>
+                        <input type="text" id="incident-foreman" placeholder="Your Name"
+                            data-i18n-placeholder="your_name_placeholder" required>
                     </div>
                 </div>
 
                 <div class="section">
-                    <h2>Incident Details</h2>
+                    <h2 data-i18n="incident_details_title">Incident Details</h2>
                     <div class="form-group">
-                        <label for="incident-description">Description of Incident:</label>
+                        <label for="incident-description" data-i18n="incident_desc_label">Description of
+                            Incident:</label>
                         <textarea id="incident-description" rows="6"
                             placeholder="Describe what happened, who was involved, and any immediate actions taken."
-                            required></textarea>
+                            data-i18n-placeholder="incident_desc_placeholder" required></textarea>
                     </div>
                 </div>
 
                 <div class="section">
-                    <h2>Photos</h2>
+                    <h2 data-i18n="photos_title">Photos Sent</h2>
                     <div class="form-group">
                         <label for="incident-photos" class="file-upload-label">
-                            <span>📷 Attach Photos</span>
+                            <span data-i18n="attach_photos_btn">📷 Attach Photos</span>
                             <input type="file" id="incident-photos" multiple accept="image/*" style="display: none;">
                         </label>
                         <div id="photo-preview-list" class="photo-list"></div>
@@ -214,17 +216,19 @@
                 </div>
 
                 <div class="section">
-                    <h2>Signature</h2>
+                    <h2 data-i18n="signature_title">Signature</h2>
                     <div class="signature-wrapper">
                         <canvas id="incident-signature-pad"></canvas>
                     </div>
                     <div class="signature-actions">
-                        <button type="button" id="clear-incident-signature">Clear</button>
+                        <button type="button" id="clear-incident-signature" data-i18n="clear_btn">Clear</button>
+                        <button type="button" id="load-incident-signature" data-i18n="load_saved_btn">Load Saved
+                            Signature</button>
                     </div>
                 </div>
 
                 <div class="actions">
-                    <button type="submit" id="submit-incident-btn">Submit Report</button>
+                    <button type="submit" id="submit-incident-btn" data-i18n="submit_report_btn">Submit Report</button>
                 </div>
             </form>
         </div>

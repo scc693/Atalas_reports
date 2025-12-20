@@ -4,10 +4,34 @@ let tokenClient;
 let gapiInited = false;
 let gisInited = false;
 
+// Helper to wait for global script variables
+function waitForScriptLoad(globalName, timeout = 5000) {
+    return new Promise((resolve, reject) => {
+        const interval = 100;
+        let elapsed = 0;
+        const check = setInterval(() => {
+            if (window[globalName]) {
+                clearInterval(check);
+                resolve(window[globalName]);
+            }
+            elapsed += interval;
+            if (elapsed > timeout) {
+                clearInterval(check);
+                console.warn(`${globalName} not loaded within ${timeout}ms.`);
+                // We resolve anyway to not block the app, but log check
+                resolve(null);
+            }
+        }, interval);
+    });
+}
+
 export async function initDriveAPI() {
+    const gapiObj = await waitForScriptLoad('gapi');
+    if (!gapiObj) return;
+
     return new Promise((resolve) => {
-        gapi.load('client', async () => {
-            await gapi.client.init({
+        gapiObj.load('client', async () => {
+            await gapiObj.client.init({
                 apiKey: driveConfig.apiKey,
                 discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'],
             });
@@ -19,8 +43,11 @@ export async function initDriveAPI() {
 }
 
 export async function initGIS() {
+    const googleObj = await waitForScriptLoad('google');
+    if (!googleObj) return;
+
     return new Promise((resolve) => {
-        tokenClient = google.accounts.oauth2.initTokenClient({
+        tokenClient = googleObj.accounts.oauth2.initTokenClient({
             client_id: driveConfig.clientId,
             scope: driveConfig.scopes,
             callback: '', // defined later
