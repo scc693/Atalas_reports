@@ -607,7 +607,33 @@ button#generate-pdf {
     }
 
     #nav-menu {
+        display: none;
+        flex-direction: column;
+        position: absolute;
+        top: 60px;
+        /* Below header */
+        right: 0;
+        background-color: var(--bg-container);
         width: min(320px, 90vw);
+        padding: 20px;
+        box-shadow: 0 5px 10px var(--shadow-color);
+        z-index: 1000;
+        border-bottom: 2px solid var(--primary-color);
+    }
+
+    #nav-menu.open {
+        display: flex;
+    }
+
+    #nav-menu button {
+        width: 100%;
+        text-align: left;
+        padding: 15px;
+        border-bottom: 1px solid var(--border-light);
+    }
+
+    .header-actions {
+        display: contents;
     }
 }
 
@@ -734,4 +760,3 @@ button#generate-pdf {
     font-weight: bold;
     color: var(--btn-blue);
 }
-
