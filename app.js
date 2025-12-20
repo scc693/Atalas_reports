@@ -1,12 +1,55 @@
-document.addEventListener('DOMContentLoaded', () => {
-    // --- State Management ---
-    const defaultWorkers = ['Stuart', 'Tommy', 'Jesus', 'Danilo'];
-    const defaultProjects = ['100-F1630-1000 South Pointe - ProMax-SD'];
+import { db, app } from './firebase-config.js';
+import {
+    collection,
+    addDoc,
+    onSnapshot,
+    deleteDoc,
+    doc,
+    updateDoc,
+    enableIndexedDbPersistence,
+    query,
+    orderBy,
+    getDocs,
+    where
+} from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
 
-    let workers = JSON.parse(localStorage.getItem('atlas_workers')) || defaultWorkers;
-    let projects = JSON.parse(localStorage.getItem('atlas_projects')) || defaultProjects;
-    // New: Map project names to foreman names
-    let projectForemen = JSON.parse(localStorage.getItem('atlas_project_foremen')) || {};
+document.addEventListener('DOMContentLoaded', () => {
+    // Check if Firebase is configured
+    const isConfigured = app.options.apiKey !== "YOUR_API_KEY";
+
+    if (!isConfigured) {
+        const container = document.querySelector('.container');
+        const alertDiv = document.createElement('div');
+        alertDiv.style.backgroundColor = '#ffcc00';
+        alertDiv.style.color = '#333';
+        alertDiv.style.padding = '15px';
+        alertDiv.style.marginBottom = '20px';
+        alertDiv.style.borderRadius = '5px';
+        alertDiv.style.textAlign = 'center';
+        alertDiv.style.fontWeight = 'bold';
+        alertDiv.innerHTML = '⚠️ Firebase Setup Required: App is running in <span style="text-decoration: underline;">Offline/Local Mode</span>. Update <code style="background:rgba(255,255,255,0.5);padding:2px 4px;border-radius:3px;">firebase-config.js</code> to enable cloud sync.';
+
+        container.insertBefore(alertDiv, container.firstChild);
+    }
+
+    // --- State Management ---
+    // Arrays now hold objects
+    // workers: [{ id: '...', name: '...' }]
+    // projects: [{ id: '...', name: '...', defaultForeman: '...' }]
+    let workers = [];
+    let projects = [];
+
+    // Only enable Firestore persistence if configured
+    if (isConfigured) {
+        enableIndexedDbPersistence(db)
+            .catch((err) => {
+                if (err.code == 'failed-precondition') {
+                    console.log('Persistence failed: Multiple tabs open');
+                } else if (err.code == 'unimplemented') {
+                    console.log('Persistence failed: Browser not supported');
+                }
+            });
+    }
 
     // --- DOM Elements ---
     const projectSelect = document.getElementById('project-select');
@@ -28,9 +71,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const saveSignatureBtn = document.getElementById('save-signature');
     const deleteSignatureBtn = document.getElementById('delete-signature');
     const sharePdfBtn = document.getElementById('share-pdf');
-    const generatePdfBtn = document.getElementById('generate-pdf');
+    // const generatePdfBtn = document.getElementById('generate-pdf'); // Not strictly used in JS, handled by form submit
     const dateInput = document.getElementById('report-date');
-    const foremanInput = document.getElementById('foreman'); // Get foreman input
+    const foremanInput = document.getElementById('foreman');
 
     // --- Initialization ---
     // Set today's date
@@ -56,7 +99,7 @@ document.addEventListener('DOMContentLoaded', () => {
         canvas.height = canvas.offsetHeight * ratio;
         canvas.getContext("2d").scale(ratio, ratio);
 
-        signaturePad.clear(); // Clear internal state matches canvas clear
+        signaturePad.clear();
 
         if (cachedBackgroundImage) {
             signaturePad.fromDataURL(cachedBackgroundImage, { ratio: ratio }).then(() => {
@@ -71,7 +114,6 @@ document.addEventListener('DOMContentLoaded', () => {
     window.addEventListener("resize", resizeCanvas);
 
     // Initial Resize & Load
-    // We need to wait a tick for layout
     setTimeout(() => {
         const ratio = Math.max(window.devicePixelRatio || 1, 1);
         canvas.width = canvas.offsetWidth * ratio;
@@ -83,34 +125,209 @@ document.addEventListener('DOMContentLoaded', () => {
     // Check for Share Support
     if (navigator.share && navigator.canShare) {
         sharePdfBtn.classList.remove('hidden');
-        // Keep both buttons: 'Generate' for direct download, 'Share' for system share options.
     }
 
-    // Populate Initial Lists
-    updateProjectSelect();
-    updateWorkerSelect();
-    renderSettingsLists();
-
-    // --- Functions ---
-
-    function saveState() {
-        localStorage.setItem('atlas_workers', JSON.stringify(workers));
-        localStorage.setItem('atlas_projects', JSON.stringify(projects));
-        localStorage.setItem('atlas_project_foremen', JSON.stringify(projectForemen));
-
-        // No need to full re-render selects if just saving foremen, but safe to do so.
-        // renderSettingsLists needs to update if we want inputs to reflect state changes made elsewhere,
-        // though typically renderSettingsLists is only visible when modal is open.
-        // If modal is open, we might want to refresh lists, but be careful of focus loss.
-        // For now, we only call renderSettingsLists explicitly when needed or in init.
+    // Initialize Logic based on Configuration
+    if (isConfigured) {
+        setupRealtimeListeners();
+        addMigrationButton();
+        checkFirstTimeUpdate();
+    } else {
+        // Fallback to LocalStorage Mode
+        loadLocalData();
     }
+
+
+    // --- Local Storage Fallback Functions ---
+
+    function loadLocalData() {
+        // Load Workers
+        const localWorkers = JSON.parse(localStorage.getItem('atlas_workers') || '[]');
+        workers = localWorkers.map(name => ({ id: name, name: name }));
+        updateWorkerSelect();
+
+        // Load Projects
+        const localProjects = JSON.parse(localStorage.getItem('atlas_projects') || '[]');
+        const localForemen = JSON.parse(localStorage.getItem('atlas_project_foremen') || '{}');
+        projects = localProjects.map(name => ({
+            id: name,
+            name: name,
+            defaultForeman: localForemen[name] || ''
+        }));
+        updateProjectSelect();
+    }
+
+    function saveLocalData() {
+        const wNames = workers.map(w => w.name);
+        const pNames = projects.map(p => p.name);
+        const pForemen = {};
+        projects.forEach(p => {
+            if (p.defaultForeman) pForemen[p.name] = p.defaultForeman;
+        });
+
+        localStorage.setItem('atlas_workers', JSON.stringify(wNames));
+        localStorage.setItem('atlas_projects', JSON.stringify(pNames));
+        localStorage.setItem('atlas_project_foremen', JSON.stringify(pForemen));
+    }
+
+
+    // --- Firestore Functions ---
+
+    function checkFirstTimeUpdate() {
+        const hasAcknowledged = localStorage.getItem('atlas_update_v6_acknowledged');
+        const legacyWorkers = localStorage.getItem('atlas_workers');
+        const legacyProjects = localStorage.getItem('atlas_projects');
+
+        // If user has legacy data but hasn't acknowledged the new system
+        if ((legacyWorkers || legacyProjects) && !hasAcknowledged) {
+
+            // Create Popup
+            const popupOverlay = document.createElement('div');
+            popupOverlay.className = 'modal';
+            popupOverlay.style.display = 'flex'; // Force show
+            popupOverlay.innerHTML = `
+                <div class="modal-content" style="text-align: center;">
+                    <h2>Database Update</h2>
+                    <p>The app has been upgraded to use a shared cloud database.</p>
+                    <p>Your local lists are being securely merged with the cloud database. Please verify your Project and Worker lists.</p>
+                    <button id="ack-update-btn" style="margin-top: 15px;">OK, Got it</button>
+                </div>
+            `;
+            document.body.appendChild(popupOverlay);
+
+            // Trigger Auto-Migration
+            migrateData(null, true); // true = silent/auto mode
+
+            // Handle Close
+            document.getElementById('ack-update-btn').addEventListener('click', () => {
+                popupOverlay.remove();
+                localStorage.setItem('atlas_update_v6_acknowledged', 'true');
+            });
+        }
+    }
+
+    function setupRealtimeListeners() {
+        // Workers Listener
+        const qWorkers = query(collection(db, "workers"), orderBy("name"));
+        onSnapshot(qWorkers, (snapshot) => {
+            workers = [];
+            snapshot.forEach((doc) => {
+                workers.push({ id: doc.id, ...doc.data() });
+            });
+            updateWorkerSelect();
+            if (!settingsModal.classList.contains('hidden')) {
+                renderSettingsLists();
+            }
+        });
+
+        // Projects Listener
+        const qProjects = query(collection(db, "projects"), orderBy("name"));
+        onSnapshot(qProjects, (snapshot) => {
+            projects = [];
+            snapshot.forEach((doc) => {
+                projects.push({ id: doc.id, ...doc.data() });
+            });
+            updateProjectSelect();
+            if (!settingsModal.classList.contains('hidden')) {
+                renderSettingsLists();
+            }
+        });
+    }
+
+    function addMigrationButton() {
+        const modalContent = document.querySelector('.modal-content');
+
+        // Check if legacy data exists
+        const legacyWorkers = localStorage.getItem('atlas_workers');
+        const legacyProjects = localStorage.getItem('atlas_projects');
+
+        if (legacyWorkers || legacyProjects) {
+            const migrateBtn = document.createElement('button');
+            migrateBtn.textContent = "☁️ Upload Local Data to Cloud";
+            migrateBtn.style.marginTop = "20px";
+            migrateBtn.style.width = "100%";
+            migrateBtn.style.backgroundColor = "#4CAF50";
+            migrateBtn.style.color = "white";
+            migrateBtn.style.padding = "10px";
+            migrateBtn.style.border = "none";
+            migrateBtn.style.cursor = "pointer";
+
+            migrateBtn.addEventListener('click', () => {
+                if (confirm("This will upload your local workers and projects to the shared database. Continue?")) {
+                    migrateData(migrateBtn);
+                }
+            });
+
+            modalContent.appendChild(migrateBtn);
+        }
+    }
+
+    async function migrateData(btnElement = null, silent = false) {
+        if (btnElement) {
+            btnElement.disabled = true;
+            btnElement.textContent = "Uploading...";
+        }
+
+        try {
+            // Migrate Workers
+            const legacyWorkers = JSON.parse(localStorage.getItem('atlas_workers') || '[]');
+            for (const w of legacyWorkers) {
+                // Check Firestore directly to avoid race conditions with local array state
+                const q = query(collection(db, "workers"), where("name", "==", w));
+                const snapshot = await getDocs(q);
+
+                if (snapshot.empty) {
+                    await addDoc(collection(db, "workers"), { name: w });
+                }
+            }
+
+            // Migrate Projects
+            const legacyProjects = JSON.parse(localStorage.getItem('atlas_projects') || '[]');
+            const legacyForemen = JSON.parse(localStorage.getItem('atlas_project_foremen') || '{}');
+
+            for (const p of legacyProjects) {
+                // Check Firestore directly
+                const q = query(collection(db, "projects"), where("name", "==", p));
+                const snapshot = await getDocs(q);
+
+                if (snapshot.empty) {
+                    const defaultForeman = legacyForemen[p] || "";
+                    await addDoc(collection(db, "projects"), {
+                        name: p,
+                        defaultForeman: defaultForeman
+                    });
+                }
+            }
+
+            if (!silent) {
+                alert("Migration complete! Your lists are now on the cloud.");
+            }
+
+            if (btnElement) {
+                btnElement.remove(); // Remove button
+            }
+
+        } catch (error) {
+            console.error("Migration failed: ", error);
+            if (!silent) {
+                alert("An error occurred during migration. Check console for details.");
+                if (btnElement) {
+                    btnElement.disabled = false;
+                    btnElement.textContent = "☁️ Upload Local Data to Cloud";
+                }
+            }
+        }
+    }
+
+
+    // --- UI Update Functions ---
 
     function updateProjectSelect() {
         const datalist = document.getElementById('project-options');
         datalist.innerHTML = '';
         projects.forEach(p => {
             const option = document.createElement('option');
-            option.value = p;
+            option.value = p.name;
             datalist.appendChild(option);
         });
     }
@@ -119,8 +336,8 @@ document.addEventListener('DOMContentLoaded', () => {
         workerSelect.innerHTML = '<option value="">Select Worker to Add</option>';
         workers.forEach(w => {
             const option = document.createElement('option');
-            option.value = w;
-            option.textContent = w;
+            option.value = w.name;
+            option.textContent = w.name;
             workerSelect.appendChild(option);
         });
     }
@@ -128,10 +345,9 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderSettingsLists() {
         // Projects
         projectsList.innerHTML = '';
-        projects.forEach((p, index) => {
+        projects.forEach((p) => {
             const li = document.createElement('li');
 
-            // Create container for Project Name + Foreman Input
             const infoDiv = document.createElement('div');
             infoDiv.style.display = 'flex';
             infoDiv.style.flexDirection = 'column';
@@ -139,27 +355,37 @@ document.addEventListener('DOMContentLoaded', () => {
             infoDiv.style.marginRight = '10px';
 
             const nameSpan = document.createElement('span');
-            nameSpan.textContent = p;
+            nameSpan.textContent = p.name;
             nameSpan.style.fontWeight = 'bold';
 
             const foremanInputSettings = document.createElement('input');
             foremanInputSettings.type = 'text';
             foremanInputSettings.placeholder = 'Default Foreman';
-            foremanInputSettings.value = projectForemen[p] || '';
+            foremanInputSettings.value = p.defaultForeman || '';
             foremanInputSettings.className = 'settings-foreman-input';
             foremanInputSettings.style.marginTop = '5px';
             foremanInputSettings.style.fontSize = '0.9rem';
             foremanInputSettings.style.padding = '4px';
 
-            // Save on change in settings
-            foremanInputSettings.addEventListener('change', (e) => {
-                projectForemen[p] = e.target.value;
-                saveState();
+            // Update Foreman on Change
+            foremanInputSettings.addEventListener('change', async (e) => {
+                const newVal = e.target.value;
+                if (isConfigured) {
+                    try {
+                        await updateDoc(doc(db, "projects", p.id), {
+                            defaultForeman: newVal
+                        });
+                    } catch (err) {
+                        console.error("Error updating foreman:", err);
+                    }
+                } else {
+                    // Local Fallback
+                    p.defaultForeman = newVal;
+                    saveLocalData();
+                }
 
-                // If this is the currently selected project in the main form, update that too?
-                // It's a nice to have.
-                if (projectSelect.value === p) {
-                    foremanInput.value = e.target.value;
+                if (projectSelect.value === p.name) {
+                    foremanInput.value = newVal;
                 }
             });
 
@@ -168,9 +394,27 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const delBtn = document.createElement('button');
             delBtn.className = 'delete-btn';
-            delBtn.dataset.type = 'project';
-            delBtn.dataset.index = index;
             delBtn.textContent = 'Delete';
+            delBtn.addEventListener('click', async () => {
+                if(confirm(`Delete project "${p.name}"?`)) {
+                    if (isConfigured) {
+                        try {
+                            await deleteDoc(doc(db, "projects", p.id));
+                        } catch (err) {
+                            console.error("Error deleting project:", err);
+                        }
+                    } else {
+                        // Local Fallback
+                        const idx = projects.findIndex(proj => proj.id === p.id);
+                        if (idx > -1) {
+                            projects.splice(idx, 1);
+                            saveLocalData();
+                            renderSettingsLists();
+                            updateProjectSelect();
+                        }
+                    }
+                }
+            });
 
             li.appendChild(infoDiv);
             li.appendChild(delBtn);
@@ -179,87 +423,94 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Workers
         workersList.innerHTML = '';
-        workers.forEach((w, index) => {
+        workers.forEach((w) => {
             const li = document.createElement('li');
-            li.innerHTML = `<span>${w}</span> <button class="delete-btn" data-type="worker" data-index="${index}">Delete</button>`;
+            li.innerHTML = `<span>${w.name}</span>`;
+
+            const delBtn = document.createElement('button');
+            delBtn.className = 'delete-btn';
+            delBtn.textContent = 'Delete';
+            delBtn.addEventListener('click', async () => {
+                if(confirm(`Delete worker "${w.name}"?`)) {
+                    if (isConfigured) {
+                        try {
+                            await deleteDoc(doc(db, "workers", w.id));
+                        } catch (err) {
+                            console.error("Error deleting worker:", err);
+                        }
+                    } else {
+                        // Local Fallback
+                        const idx = workers.findIndex(work => work.id === w.id);
+                        if (idx > -1) {
+                            workers.splice(idx, 1);
+                            saveLocalData();
+                            renderSettingsLists();
+                            updateWorkerSelect();
+                        }
+                    }
+                }
+            });
+
+            li.appendChild(delBtn);
             workersList.appendChild(li);
         });
-
-        // Add event listeners to delete buttons
-        document.querySelectorAll('.delete-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                const type = e.target.dataset.type;
-                const index = parseInt(e.target.dataset.index);
-                if (type === 'project') {
-                    const projectToRemove = projects[index];
-                    projects.splice(index, 1);
-                    // Also clean up the foreman mapping
-                    delete projectForemen[projectToRemove];
-                } else {
-                    workers.splice(index, 1);
-                }
-                saveState();
-                // Re-render to show removal
-                renderSettingsLists();
-                updateProjectSelect();
-                updateWorkerSelect();
-            });
-        });
     }
+
 
     // --- Event Listeners ---
 
     // Magic Saving: Load Foreman when Project Changed
     projectSelect.addEventListener('change', () => {
-        const selectedProject = projectSelect.value;
-        if (selectedProject && projectForemen[selectedProject]) {
-            foremanInput.value = projectForemen[selectedProject];
-        } else {
-            // Optional: Clear if no history, or keep previous?
-            // User requested: "fallback to last foreman used globally" (implied by question 3 logic,
-            // but user confirmed "per jobsite with magic saving").
-            // Typically if I switch project to a new one, I might want the field clear or kept.
-            // Let's keep the current value if no mapping exists (less destructive),
-            // OR clear it. The prompt "Foreman / Project Lead" placeholder suggests it's required.
-            // If I switch from Project A (Foreman Bob) to Project B (New), keeping "Bob" might be helpful or confusing.
-            // I'll leave it as-is (do nothing) if no match found, so the user can edit or keep.
-            // Actually, if it's "Magic Saving", it implies we are recording.
+        const selectedName = projectSelect.value;
+        const projectObj = projects.find(p => p.name === selectedName);
+
+        if (projectObj && projectObj.defaultForeman) {
+            foremanInput.value = projectObj.defaultForeman;
         }
     });
 
     // Magic Saving: Save Foreman when Foreman Input Changed
-    foremanInput.addEventListener('change', () => {
-        const currentProject = projectSelect.value;
+    foremanInput.addEventListener('change', async () => {
+        const currentProjectName = projectSelect.value;
         const currentForeman = foremanInput.value;
 
-        // Only save if we have a project selected (even a typed custom one)
-        if (currentProject) {
-            projectForemen[currentProject] = currentForeman;
-            saveState();
+        if (currentProjectName) {
+            const projectObj = projects.find(p => p.name === currentProjectName);
+            // Only update if the project exists in our list (not a brand new typed one yet)
+            if (projectObj) {
+                if (isConfigured) {
+                    try {
+                        await updateDoc(doc(db, "projects", projectObj.id), {
+                            defaultForeman: currentForeman
+                        });
+                    } catch (err) {
+                        console.error("Error saving foreman:", err);
+                    }
+                } else {
+                    // Local Fallback
+                    projectObj.defaultForeman = currentForeman;
+                    saveLocalData();
+                }
+            }
         }
     });
-
-    // Also capture input on projectSelect to handle typed values that might match existing ones
-    // 'change' event fires on commit (enter or blur), 'input' fires on keystroke.
-    // For datalist, 'change' is best.
 
     // Add Worker to Table
     addWorkerBtn.addEventListener('click', () => {
         const workerName = workerSelect.value;
         if (!workerName) return;
 
-        // Check for duplicates
         const existingNames = Array.from(crewTableBody.querySelectorAll('tr td:first-child input'))
             .map(input => input.value);
 
         if (existingNames.includes(workerName)) {
             alert('This worker has already been added to the report.');
-            workerSelect.value = ''; // Reset select
+            workerSelect.value = '';
             return;
         }
 
         addWorkerRow(workerName);
-        workerSelect.value = ''; // Reset select
+        workerSelect.value = '';
     });
 
     function addWorkerRow(name, timeIn = '08:00', timeOut = '16:30', hours = '8.5') {
@@ -281,7 +532,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Settings Modal
     settingsBtn.addEventListener('click', () => {
-        // Re-render to ensure inputs are up to date
         renderSettingsLists();
         settingsModal.classList.remove('hidden');
     });
@@ -296,31 +546,65 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Add New Project
-    addProjectBtn.addEventListener('click', () => {
+    // Add New Project (Cloud/Local)
+    addProjectBtn.addEventListener('click', async () => {
         const val = newProjectInput.value.trim();
-        if (val && !projects.includes(val)) {
-            projects.push(val);
-            saveState();
+        if (val) {
+            // Check existence
+            if (projects.some(p => p.name === val)) {
+                alert("Project already exists!");
+                return;
+            }
+            if (isConfigured) {
+                try {
+                    await addDoc(collection(db, "projects"), {
+                        name: val,
+                        defaultForeman: ""
+                    });
+                } catch (err) {
+                    console.error("Error adding project:", err);
+                    alert("Failed to add project.");
+                }
+            } else {
+                // Local Fallback
+                projects.push({ id: val, name: val, defaultForeman: "" });
+                saveLocalData();
+                renderSettingsLists();
+                updateProjectSelect();
+            }
             newProjectInput.value = '';
-            renderSettingsLists(); // Update UI immediately to show new item
-            updateProjectSelect();
         }
     });
 
-    // Add New Worker (Settings)
-    addWorkerSettingsBtn.addEventListener('click', () => {
+    // Add New Worker (Cloud/Local)
+    addWorkerSettingsBtn.addEventListener('click', async () => {
         const val = newWorkerInput.value.trim();
-        if (val && !workers.includes(val)) {
-            workers.push(val);
-            saveState();
+        if (val) {
+             if (workers.some(w => w.name === val)) {
+                alert("Worker already exists!");
+                return;
+            }
+            if (isConfigured) {
+                try {
+                    await addDoc(collection(db, "workers"), {
+                        name: val
+                    });
+                } catch (err) {
+                    console.error("Error adding worker:", err);
+                    alert("Failed to add worker.");
+                }
+            } else {
+                // Local Fallback
+                workers.push({ id: val, name: val });
+                saveLocalData();
+                renderSettingsLists();
+                updateWorkerSelect();
+            }
             newWorkerInput.value = '';
-            renderSettingsLists(); // Update UI
-            updateWorkerSelect();
         }
     });
 
-    // Clear Signature (Canvas only)
+    // Clear Signature
     clearSignatureBtn.addEventListener('click', () => {
         signaturePad.clear();
         signatureHasData = false;
@@ -378,7 +662,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Generate PDF
     reportForm.addEventListener('submit', (e) => {
         e.preventDefault();
-        generatePDF(); // Default behavior (download)
+        generatePDF();
     });
 
     // Share PDF
@@ -387,7 +671,7 @@ document.addEventListener('DOMContentLoaded', () => {
             reportForm.reportValidity();
             return;
         }
-        await generatePDF(true); // true = share mode
+        await generatePDF(true);
     });
 
     async function generatePDF(isShare = false) {
@@ -525,10 +809,10 @@ document.addEventListener('DOMContentLoaded', () => {
         doc.autoTable({
             startY: yPos,
             body: [[timeInVal, timeOutVal]],
-            theme: 'grid', // Changed to grid for borders
+            theme: 'grid',
             styles: { halign: 'center', cellWidth: 'wrap', lineColor: 200, lineWidth: 0.1, textColor: 20 },
-            columnStyles: { 0: { cellWidth: 80 }, 1: { cellWidth: 80 } }, // Manually set widths
-            margin: { left: 24 } // Offset to match image roughly
+            columnStyles: { 0: { cellWidth: 80 }, 1: { cellWidth: 80 } },
+            margin: { left: 24 }
         });
 
         yPos = doc.lastAutoTable.finalY + 15;
@@ -536,7 +820,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Foreman / Project Lead Signature Label
         doc.setFont("helvetica", "bold");
         doc.text("Foreman / Project Lead Signature", 14, yPos);
-        yPos += 5; // Space below label
+        yPos += 5;
 
         // Signature Image
         if (signatureHasData) {
@@ -551,7 +835,7 @@ document.addEventListener('DOMContentLoaded', () => {
         doc.setLineDash([2, 2], 0);
         doc.setLineWidth(0.1);
         doc.line(14, yPos, 80, yPos);
-        doc.setLineDash([]); // Reset to solid line
+        doc.setLineDash([]);
 
         // Save PDF
         const filenameDate = dateVal;
