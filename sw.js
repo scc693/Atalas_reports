@@ -7,7 +7,9 @@ const urlsToCache = [
   './firebase-config.js',
   'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',
   'https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js',
-  'https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js'
+  'https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js',
+  'https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js',
+  'https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js'
 ];
 
 self.addEventListener('install', event => {

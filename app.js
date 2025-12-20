@@ -8,7 +8,9 @@ import {
     updateDoc,
     enableIndexedDbPersistence,
     query,
-    orderBy
+    orderBy,
+    getDocs,
+    where
 } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -231,9 +233,11 @@ document.addEventListener('DOMContentLoaded', () => {
             // Migrate Workers
             const legacyWorkers = JSON.parse(localStorage.getItem('atlas_workers') || '[]');
             for (const w of legacyWorkers) {
-                // Check if already exists (by name) to avoid basic duplicates during simple migration
-                const exists = workers.find(existing => existing.name === w);
-                if (!exists) {
+                // Check Firestore directly to avoid race conditions with local array state
+                const q = query(collection(db, "workers"), where("name", "==", w));
+                const snapshot = await getDocs(q);
+
+                if (snapshot.empty) {
                     await addDoc(collection(db, "workers"), { name: w });
                 }
             }
@@ -243,8 +247,11 @@ document.addEventListener('DOMContentLoaded', () => {
             const legacyForemen = JSON.parse(localStorage.getItem('atlas_project_foremen') || '{}');
 
             for (const p of legacyProjects) {
-                const exists = projects.find(existing => existing.name === p);
-                if (!exists) {
+                // Check Firestore directly
+                const q = query(collection(db, "projects"), where("name", "==", p));
+                const snapshot = await getDocs(q);
+
+                if (snapshot.empty) {
                     const defaultForeman = legacyForemen[p] || "";
                     await addDoc(collection(db, "projects"), {
                         name: p,

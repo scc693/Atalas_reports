@@ -3,7 +3,8 @@
 To add Google Sign-In and restrict access to the application, we would need to perform the following steps:
 
 ## 1. Firebase Console Setup
-*   Go to **Authentication** > **Sign-in method**.
+*   Go to the [Firebase Console](https://console.firebase.google.com/).
+*   Navigate to **Authentication** > **Sign-in method**.
 *   Enable **Google**.
 *   Configure the support email and save.
 
