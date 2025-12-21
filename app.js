@@ -1343,17 +1343,56 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function addWorkerRow(name, timeIn = '08:00', timeOut = '16:30', hours = '8.5') {
         const tr = document.createElement('tr');
-        tr.innerHTML = `
-            <td><input type="text" value="${name}" class="table-input" /></td>
-            <td><input type="time" value="${timeIn}" class="table-input" /></td>
-            <td><input type="time" value="${timeOut}" class="table-input" /></td>
-            <td><input type="number" value="${hours}" step="0.5" class="table-input" /></td>
-            <td><button type="button" class="remove-row-btn" style="background-color: #ff4d4d;">X</button></td>
-        `;
 
-        tr.querySelector('.remove-row-btn').addEventListener('click', () => {
+        // Name Cell
+        const tdName = document.createElement('td');
+        const inputName = document.createElement('input');
+        inputName.type = 'text';
+        inputName.value = name;
+        inputName.className = 'table-input';
+        tdName.appendChild(inputName);
+        tr.appendChild(tdName);
+
+        // Time In Cell
+        const tdTimeIn = document.createElement('td');
+        const inputTimeIn = document.createElement('input');
+        inputTimeIn.type = 'time';
+        inputTimeIn.value = timeIn;
+        inputTimeIn.className = 'table-input';
+        tdTimeIn.appendChild(inputTimeIn);
+        tr.appendChild(tdTimeIn);
+
+        // Time Out Cell
+        const tdTimeOut = document.createElement('td');
+        const inputTimeOut = document.createElement('input');
+        inputTimeOut.type = 'time';
+        inputTimeOut.value = timeOut;
+        inputTimeOut.className = 'table-input';
+        tdTimeOut.appendChild(inputTimeOut);
+        tr.appendChild(tdTimeOut);
+
+        // Hours Cell
+        const tdHours = document.createElement('td');
+        const inputHours = document.createElement('input');
+        inputHours.type = 'number';
+        inputHours.value = hours;
+        inputHours.step = '0.5';
+        inputHours.className = 'table-input';
+        tdHours.appendChild(inputHours);
+        tr.appendChild(tdHours);
+
+        // Delete Button Cell
+        const tdDelete = document.createElement('td');
+        const btnDelete = document.createElement('button');
+        btnDelete.type = 'button';
+        btnDelete.className = 'remove-row-btn';
+        btnDelete.style.backgroundColor = '#ff4d4d';
+        btnDelete.textContent = 'X';
+        btnDelete.addEventListener('click', () => {
             tr.remove();
         });
+        tdDelete.appendChild(btnDelete);
+        tr.appendChild(tdDelete);
 
         crewTableBody.appendChild(tr);
     }
