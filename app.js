@@ -91,20 +91,31 @@ function initializeAppLogic() {
     });
 
     async function checkUserRole(email) {
-        // Always show settings for logged in users
-        settingsBtn.classList.remove('hidden');
-
         try {
+            console.log(`Checking role for: ${email}`);
             const userDoc = await getDoc(doc(db, "users", email));
-            if (userDoc.exists() && userDoc.data().role === 'admin') {
-                reviewReportsBtn.classList.remove('hidden');
+
+            if (userDoc.exists()) {
+                const userData = userDoc.data();
+                console.log("User data found:", userData);
+                if (userData.role === 'admin') {
+                    console.log("User is Admin. Revealing controls.");
+                    settingsBtn.classList.remove('hidden');
+                    reviewReportsBtn.classList.remove('hidden');
+                } else {
+                    console.log(`User role is '${userData.role}', not 'admin'. Hiding controls.`);
+                    settingsBtn.classList.add('hidden');
+                    reviewReportsBtn.classList.add('hidden');
+                }
             } else {
+                console.log("No user document found in 'users' collection.");
+                settingsBtn.classList.add('hidden');
                 reviewReportsBtn.classList.add('hidden');
             }
         } catch (error) {
             console.error("Error checking role:", error);
-            // Even if role check fails, settings should be available if logged in
-            settingsBtn.classList.remove('hidden');
+            settingsBtn.classList.add('hidden');
+            reviewReportsBtn.classList.add('hidden');
         }
     }
 
