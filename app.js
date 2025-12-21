@@ -91,18 +91,20 @@ function initializeAppLogic() {
     });
 
     async function checkUserRole(email) {
+        // Always show settings for logged in users
+        settingsBtn.classList.remove('hidden');
+
         try {
             const userDoc = await getDoc(doc(db, "users", email));
             if (userDoc.exists() && userDoc.data().role === 'admin') {
-                settingsBtn.classList.remove('hidden');
                 reviewReportsBtn.classList.remove('hidden');
             } else {
-                settingsBtn.classList.add('hidden');
                 reviewReportsBtn.classList.add('hidden');
             }
         } catch (error) {
             console.error("Error checking role:", error);
-            settingsBtn.classList.add('hidden');
+            // Even if role check fails, settings should be available if logged in
+            settingsBtn.classList.remove('hidden');
         }
     }
 
