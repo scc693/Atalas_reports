@@ -1,6 +1,6 @@
 export const translations = {
     "en": {
-        "app_title": "Atlas Daily Report",
+        "app_title": "Atlas Reports",
         "manage_lists": "⚙️ Manage Lists",
         "date_label": "Date:",
         "project_label": "Project:",
@@ -42,7 +42,7 @@ export const translations = {
         "modal_worker_placeholder": "New Worker Name"
     },
     "es": {
-        "app_title": "Informe Diario Atlas",
+        "app_title": "Informes Atlas",
         "manage_lists": "⚙️ Gestionar Listas",
         "date_label": "Fecha:",
         "project_label": "Proyecto:",

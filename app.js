@@ -85,10 +85,21 @@ function initializeAppLogic() {
 
     async function checkUserRole(email) {
         try {
+            console.log(`Checking role for: ${email}`);
             const userDoc = await getDoc(doc(db, "users", email));
-            if (userDoc.exists() && userDoc.data().role === 'admin') {
-                settingsBtn.classList.remove('hidden');
+
+            if (userDoc.exists()) {
+                const userData = userDoc.data();
+                console.log("User data found:", userData);
+                if (userData.role === 'admin') {
+                    console.log("User is Admin. Revealing controls.");
+                    settingsBtn.classList.remove('hidden');
+                } else {
+                    console.log(`User role is '${userData.role}', not 'admin'. Hiding controls.`);
+                    settingsBtn.classList.add('hidden');
+                }
             } else {
+                console.log("No user document found in 'users' collection.");
                 settingsBtn.classList.add('hidden');
             }
         } catch (error) {
