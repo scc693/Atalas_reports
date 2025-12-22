@@ -78,6 +78,22 @@ function initializeAppLogic() {
             userDisplayName.textContent = user.email;
 
             if (isConfigured) {
+                // Auto-register user if not exists
+                const userRef = doc(db, "users", user.email);
+                try {
+                    const userSnap = await getDoc(userRef);
+                    if (!userSnap.exists()) {
+                        await setDoc(userRef, {
+                            email: user.email,
+                            role: 'worker',
+                            createdAt: new Date().toISOString()
+                        });
+                        console.log("New user registered as worker:", user.email);
+                    }
+                } catch (regErr) {
+                    console.error("Error registering user:", regErr);
+                }
+
                 checkUserRole(user.email);
                 setupRealtimeListeners();
                 // Auto-load signature from Cloud if available
@@ -1241,7 +1257,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         // Use email as doc ID
                         await setDoc(doc(db, "users", email), {
                             role: "admin"
-                        });
+                        }, { merge: true });
                         alert(`Admin ${email} added.`);
                         renderSettingsLists(); // re-render to update list
                     } catch (err) {
