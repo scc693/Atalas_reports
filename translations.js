@@ -41,6 +41,7 @@ export const translations = {
         "modal_project_placeholder": "New Project Name",
         "modal_add_btn": "Add",
         "modal_workers_title": "Workers",
+        "modal_worker_placeholder": "New Worker Name",
         "incident_date_label": "Date of Incident:",
         "incident_project_label": "Project / Location:",
         "incident_foreman_label": "Foreman / Lead:",
