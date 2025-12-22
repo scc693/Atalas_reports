@@ -30,7 +30,8 @@ service cloud.firestore {
     // - Users can read their own submissions
     // - Admins can read all reports and update them (approve/reject)
     match /incident_reports/{reportId} {
-      allow create: if request.auth != null;
+      // Allow create only if the 'submittedBy' field matches the authenticated user's email
+      allow create: if request.auth != null && request.resource.data.submittedBy == request.auth.token.email;
       allow read: if request.auth != null && 
         (resource.data.submittedBy == request.auth.token.email || 
          get(/databases/$(database)/documents/users/$(request.auth.token.email)).data.role == 'admin');
