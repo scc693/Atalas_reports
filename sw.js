@@ -1,15 +1,20 @@
-const CACHE_NAME = 'atlas-report-v6.3';
+const CACHE_NAME = 'atlas-report-v6.4';
 const urlsToCache = [
   './',
   './index.html',
   './style.css',
   './app.js',
   './firebase-config.js',
+  './utils.js',
+  './translations.js',
+  './drive-service.js',
   'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',
   'https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js',
-  'https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js',
+  'https://cdnjs.cloudflare.com/ajax/libs/signature_pad/4.1.7/signature_pad.umd.min.js',
   'https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js',
-  'https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js'
+  'https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js',
+  'https://www.gstatic.com/firebasejs/12.7.0/firebase-auth.js',
+  'https://www.gstatic.com/firebasejs/12.7.0/firebase-storage.js'
 ];
 
 self.addEventListener('install', event => {

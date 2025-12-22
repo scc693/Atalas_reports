@@ -681,18 +681,28 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            snapshot.forEach(doc => {
-                const data = doc.data();
+            snapshot.forEach(docSnap => {
+                const data = docSnap.data();
                 const li = document.createElement('li');
-                li.innerHTML = `
-                    <div style="display:flex; justify-content:space-between;">
-                        <span>${data.date} - ${data.project}</span>
-                        <span style="font-size:0.8em; color:#666;">${data.foreman}</span>
-                    </div>
-                `;
+
+                const wrapper = document.createElement('div');
+                wrapper.style.display = 'flex';
+                wrapper.style.justifyContent = 'space-between';
+
+                const dateProjectSpan = document.createElement('span');
+                dateProjectSpan.textContent = `${data.date} - ${data.project}`;
+
+                const foremanSpan = document.createElement('span');
+                foremanSpan.style.fontSize = '0.8em';
+                foremanSpan.style.color = '#666';
+                foremanSpan.textContent = data.foreman;
+
+                wrapper.appendChild(dateProjectSpan);
+                wrapper.appendChild(foremanSpan);
+                li.appendChild(wrapper);
+
                 li.addEventListener('click', () => {
-                    openReportReview(doc.id, data);
-                    // Open detailed view logic
+                    openReportReview(docSnap.id, data);
                 });
                 pendingReportsList.appendChild(li);
             });
@@ -709,28 +719,87 @@ document.addEventListener('DOMContentLoaded', () => {
         reviewsListModal.classList.add('hidden');
         reportReviewModal.classList.remove('hidden');
 
-        // Render Content
-        let photosHtml = '';
-        if (data.photos && data.photos.length > 0) {
-            data.photos.forEach(p => {
-                photosHtml += `<a href="${p.url}" target="_blank" style="margin-right:5px;"><img src="${p.url}" style="width:100px; height:100px; object-fit:cover; border:1px solid #ccc;"></a>`;
-            });
+        // Render Content safely without innerHTML
+        reviewContent.innerHTML = ''; // Clear previous content
+
+        // Helper to create labeled paragraph
+        function createLabeledP(label, value) {
+            const p = document.createElement('p');
+            const strong = document.createElement('strong');
+            strong.textContent = label;
+            p.appendChild(strong);
+            p.appendChild(document.createTextNode(' ' + value));
+            return p;
         }
 
-        reviewContent.innerHTML = `
-            <p><strong>Date:</strong> ${data.date}</p>
-            <p><strong>Project:</strong> ${data.project}</p>
-            <p><strong>Foreman:</strong> ${data.foreman}</p>
-            <p><strong>Submitted By:</strong> ${data.submittedBy}</p>
-            <hr>
-            <p><strong>Description:</strong></p>
-            <p style="white-space: pre-wrap; background:#f9f9f9; padding:10px;">${data.description}</p>
-            <p><strong>Photos:</strong></p>
-            <div style="display:flex; flex-wrap:wrap;">${photosHtml || 'No photos attached.'}</div>
-            <hr>
-            <p><strong>User Signature:</strong></p>
-            <canvas id="review-user-sig" width="300" height="150" style="border:1px solid #ccc;"></canvas>
-        `;
+        reviewContent.appendChild(createLabeledP('Date:', data.date || ''));
+        reviewContent.appendChild(createLabeledP('Project:', data.project || ''));
+        reviewContent.appendChild(createLabeledP('Foreman:', data.foreman || ''));
+        reviewContent.appendChild(createLabeledP('Submitted By:', data.submittedBy || ''));
+
+        reviewContent.appendChild(document.createElement('hr'));
+
+        const descLabel = document.createElement('p');
+        const descStrong = document.createElement('strong');
+        descStrong.textContent = 'Description:';
+        descLabel.appendChild(descStrong);
+        reviewContent.appendChild(descLabel);
+
+        const descP = document.createElement('p');
+        descP.style.whiteSpace = 'pre-wrap';
+        descP.style.background = '#f9f9f9';
+        descP.style.padding = '10px';
+        descP.textContent = data.description || '';
+        reviewContent.appendChild(descP);
+
+        const photosLabel = document.createElement('p');
+        const photosStrong = document.createElement('strong');
+        photosStrong.textContent = 'Photos:';
+        photosLabel.appendChild(photosStrong);
+        reviewContent.appendChild(photosLabel);
+
+        const photosDiv = document.createElement('div');
+        photosDiv.style.display = 'flex';
+        photosDiv.style.flexWrap = 'wrap';
+
+        if (data.photos && data.photos.length > 0) {
+            data.photos.forEach(p => {
+                const a = document.createElement('a');
+                a.href = p.url;
+                a.target = '_blank';
+                a.rel = 'noopener noreferrer';
+                a.style.marginRight = '5px';
+
+                const img = document.createElement('img');
+                img.src = p.url;
+                img.style.width = '100px';
+                img.style.height = '100px';
+                img.style.objectFit = 'cover';
+                img.style.border = '1px solid #ccc';
+                img.alt = 'Incident photo';
+
+                a.appendChild(img);
+                photosDiv.appendChild(a);
+            });
+        } else {
+            photosDiv.textContent = 'No photos attached.';
+        }
+        reviewContent.appendChild(photosDiv);
+
+        reviewContent.appendChild(document.createElement('hr'));
+
+        const sigLabel = document.createElement('p');
+        const sigStrong = document.createElement('strong');
+        sigStrong.textContent = 'User Signature:';
+        sigLabel.appendChild(sigStrong);
+        reviewContent.appendChild(sigLabel);
+
+        const sigCanvas = document.createElement('canvas');
+        sigCanvas.id = 'review-user-sig';
+        sigCanvas.width = 300;
+        sigCanvas.height = 150;
+        sigCanvas.style.border = '1px solid #ccc';
+        reviewContent.appendChild(sigCanvas);
 
         // Render User Signature on the read-only canvas
         setTimeout(() => {
@@ -1167,7 +1236,9 @@ document.addEventListener('DOMContentLoaded', () => {
         workersList.innerHTML = '';
         workers.forEach((w) => {
             const li = document.createElement('li');
-            li.innerHTML = `<span>${w.name}</span>`;
+            const span = document.createElement('span');
+            span.textContent = w.name;
+            li.appendChild(span);
 
             const delBtn = document.createElement('button');
             delBtn.className = 'delete-btn';
@@ -1242,7 +1313,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 snapshot.forEach((userDoc) => {
                     const email = userDoc.id;
                     const li = document.createElement('li');
-                    li.innerHTML = `<span>${email}</span>`;
+                    const emailSpan = document.createElement('span');
+                    emailSpan.textContent = email;
+                    li.appendChild(emailSpan);
 
                     const delBtn = document.createElement('button');
                     delBtn.className = 'delete-btn';
