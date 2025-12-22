@@ -28,10 +28,15 @@ import {
 } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-storage.js";
 import { formatTime, removeFromList, isNameInList, validateIncidentForm } from './utils.js';
 import { translations } from './translations.js';
-import { initDriveAPI, initGIS, authenticateDrive, createDriveFolder, uploadFileToDrive } from './drive-service.js';
+import { initDriveAPI, initGIS, authenticateDrive, createDriveFolder, uploadFileToDrive, isDriveConfigured } from './drive-service.js';
 
 // Main Execution
 const isConfigured = app.options.apiKey !== "YOUR_API_KEY";
+const storageUploadsEnabled = false; // TODO: enable when Firebase Storage is configured for incident photos
+const driveUploadsEnabled = false; // TODO: enable when Google Drive integration is configured
+const driveConfigured = isDriveConfigured;
+const storagePlaceholderMessage = "Firebase Storage not configured. Photos are marked as pending upload.";
+const drivePlaceholderMessage = "Google Drive not configured. Approval uploads are pending setup.";
 
 // --- DOM Elements & Auth Setup ---
 function initializeAppLogic() {
@@ -159,13 +164,21 @@ function initializeAppLogic() {
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
         initializeAppLogic();
-        initDriveAPI();
-        initGIS();
+        if (driveConfigured) {
+            initDriveAPI();
+            initGIS();
+        } else {
+            console.warn(drivePlaceholderMessage);
+        }
     });
 } else {
     initializeAppLogic();
-    initDriveAPI();
-    initGIS();
+    if (driveConfigured) {
+        initDriveAPI();
+        initGIS();
+    } else {
+        console.warn(drivePlaceholderMessage);
+    }
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -241,6 +254,24 @@ document.addEventListener('DOMContentLoaded', () => {
     const adminNote = document.getElementById('admin-note');
     const approveReportBtn = document.getElementById('approve-report-btn');
     const requestRevisionBtn = document.getElementById('request-revision-btn');
+
+    // --- Placeholder Notices for Pending Integrations ---
+    function addIntegrationNotice(message) {
+        const incidentTab = document.getElementById('incident-reports-tab');
+        if (!incidentTab) return;
+
+        const banner = document.createElement('div');
+        banner.className = 'integration-warning';
+        banner.textContent = message;
+        banner.style.border = '1px solid #f0ad4e';
+        banner.style.backgroundColor = '#fff3cd';
+        banner.style.color = '#664d03';
+        banner.style.padding = '10px';
+        banner.style.borderRadius = '6px';
+        banner.style.marginBottom = '12px';
+
+        incidentTab.insertBefore(banner, incidentTab.firstChild);
+    }
 
     // --- Internationalization ---
     let currentLang = localStorage.getItem('atlas_lang') || 'en';
@@ -343,6 +374,14 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Initialization ---
     // Set today's date
     dateInput.valueAsDate = new Date();
+    incidentDateInput.valueAsDate = new Date();
+
+    if (!storageUploadsEnabled) {
+        addIntegrationNotice(storagePlaceholderMessage);
+    }
+    if (!driveUploadsEnabled || !driveConfigured) {
+        addIntegrationNotice(drivePlaceholderMessage);
+    }
 
     // Initialize Signature Pad
     const signaturePad = new SignaturePad(canvas);
@@ -448,6 +487,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // --- Photo Upload Logic ---
+    const STORAGE_PLACEHOLDER_URL = 'PENDING_STORAGE_UPLOAD';
     let selectedPhotos = [];
 
     incidentPhotosInput.addEventListener('change', (e) => {
@@ -464,6 +504,47 @@ document.addEventListener('DOMContentLoaded', () => {
         // Reset input so change event triggers even if same file selected again
         incidentPhotosInput.value = '';
     });
+
+    function buildPlaceholderPhotoRecords(reportId) {
+        return selectedPhotos.map((file) => ({
+            name: file.name,
+            url: STORAGE_PLACEHOLDER_URL,
+            path: `placeholder/${reportId}/${file.name}`,
+            placeholder: true,
+            note: storagePlaceholderMessage
+        }));
+    }
+
+    async function uploadIncidentPhotos(reportId) {
+        if (selectedPhotos.length === 0) return [];
+
+        if (!storageUploadsEnabled) {
+            console.warn("Storage uploads disabled. Using placeholder photo records.");
+            return buildPlaceholderPhotoRecords(reportId);
+        }
+
+        const photoUrls = [];
+        for (let i = 0; i < selectedPhotos.length; i++) {
+            const file = selectedPhotos[i];
+            const storageRef = ref(storage, `temp_incidents/${reportId}/${file.name}`);
+            try {
+                await uploadBytes(storageRef, file);
+                const url = await getDownloadURL(storageRef);
+                photoUrls.push({ name: file.name, url: url, path: storageRef.fullPath });
+            } catch (error) {
+                console.error("Photo upload failed, storing placeholder entry:", error);
+                photoUrls.push({
+                    name: file.name,
+                    url: STORAGE_PLACEHOLDER_URL,
+                    path: storageRef.fullPath,
+                    placeholder: true,
+                    note: storagePlaceholderMessage
+                });
+            }
+        }
+
+        return photoUrls;
+    }
 
     function renderPhotoPreviews() {
         photoPreviewList.innerHTML = '';
@@ -559,15 +640,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const timestamp = new Date().toISOString();
             const reportId = `${incidentDateInput.value}_${Date.now()}`;
 
-            // 1. Upload Photos
-            const photoUrls = [];
-            for (let i = 0; i < selectedPhotos.length; i++) {
-                const file = selectedPhotos[i];
-                const storageRef = ref(storage, `temp_incidents/${reportId}/${file.name}`);
-                await uploadBytes(storageRef, file);
-                const url = await getDownloadURL(storageRef);
-                photoUrls.push({ name: file.name, url: url, path: storageRef.fullPath });
-            }
+            // 1. Upload Photos (placeholder-friendly)
+            const photoUrls = await uploadIncidentPhotos(reportId);
 
             // 2. Save Report Doc
             await addDoc(collection(db, "incident_reports"), {
@@ -580,7 +654,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 status: 'submitted',
                 submittedAt: timestamp,
                 assignedAdmin: adminEmail,
-                submittedBy: auth.currentUser ? auth.currentUser.email : 'unknown'
+                submittedBy: auth.currentUser ? auth.currentUser.email : 'unknown',
+                storageStatus: storageUploadsEnabled ? 'uploaded' : 'pending_setup',
+                driveStatus: driveUploadsEnabled ? 'pending_upload' : 'pending_setup'
             });
 
             alert("Incident Report Submitted Successfully!");
@@ -731,27 +807,55 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (data.photos && data.photos.length > 0) {
             data.photos.forEach(p => {
-                const a = document.createElement('a');
-                a.href = p.url;
-                a.target = '_blank';
-                a.rel = 'noopener noreferrer';
-                a.style.marginRight = '5px';
+                if (p.placeholder || p.url === STORAGE_PLACEHOLDER_URL) {
+                    const badge = document.createElement('div');
+                    badge.textContent = `${p.name || 'Photo'} pending upload`;
+                    badge.style.padding = '8px 10px';
+                    badge.style.marginRight = '8px';
+                    badge.style.marginBottom = '8px';
+                    badge.style.borderRadius = '6px';
+                    badge.style.border = '1px dashed #f0ad4e';
+                    badge.style.color = '#a56400';
+                    badge.style.backgroundColor = '#fff7e6';
+                    photosDiv.appendChild(badge);
+                } else {
+                    const a = document.createElement('a');
+                    a.href = p.url;
+                    a.target = '_blank';
+                    a.rel = 'noopener noreferrer';
+                    a.style.marginRight = '5px';
 
-                const img = document.createElement('img');
-                img.src = p.url;
-                img.style.width = '100px';
-                img.style.height = '100px';
-                img.style.objectFit = 'cover';
-                img.style.border = '1px solid #ccc';
-                img.alt = 'Incident photo';
+                    const img = document.createElement('img');
+                    img.src = p.url;
+                    img.style.width = '100px';
+                    img.style.height = '100px';
+                    img.style.objectFit = 'cover';
+                    img.style.border = '1px solid #ccc';
+                    img.alt = 'Incident photo';
 
-                a.appendChild(img);
-                photosDiv.appendChild(a);
+                    a.appendChild(img);
+                    photosDiv.appendChild(a);
+                }
             });
         } else {
             photosDiv.textContent = 'No photos attached.';
         }
         reviewContent.appendChild(photosDiv);
+
+        if (!storageUploadsEnabled) {
+            const storageNote = document.createElement('p');
+            storageNote.textContent = storagePlaceholderMessage;
+            storageNote.style.color = '#a56400';
+            storageNote.style.fontStyle = 'italic';
+            reviewContent.appendChild(storageNote);
+        }
+        if (!driveUploadsEnabled) {
+            const driveNote = document.createElement('p');
+            driveNote.textContent = drivePlaceholderMessage;
+            driveNote.style.color = '#a56400';
+            driveNote.style.fontStyle = 'italic';
+            reviewContent.appendChild(driveNote);
+        }
 
         reviewContent.appendChild(document.createElement('hr'));
 
@@ -832,39 +936,45 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        if (confirm("Approve this report? This will create a local PDF download and upload to Google Drive.")) {
+        const confirmationMsg = driveUploadsEnabled
+            ? "Approve this report? This will create a local PDF download and upload to Google Drive."
+            : "Approve this report? Uploads will be marked as pending until Google Drive is configured.";
+
+        if (confirm(confirmationMsg)) {
             try {
                 approveReportBtn.disabled = true;
                 approveReportBtn.textContent = "Processing...";
 
-                // 1. Authenticate with Drive
-                await authenticateDrive();
+                let folderId = 'DRIVE_SETUP_PENDING';
+                if (driveUploadsEnabled) {
+                    // 1. Authenticate with Drive
+                    await authenticateDrive();
 
-                // 2. Create Drive Folder
-                const folderName = `Incident_${currentReviewReportData.date}_${currentReviewReportData.project}`;
-                const folderId = await createDriveFolder(folderName);
+                    // 2. Create Drive Folder
+                    const folderName = `Incident_${currentReviewReportData.date}_${currentReviewReportData.project}`;
+                    folderId = await createDriveFolder(folderName);
 
-                // 3. Upload Original Photos
-                if (currentReviewReportData.photos && currentReviewReportData.photos.length > 0) {
-                    for (const photo of currentReviewReportData.photos) {
-                        try {
-                            // Fetch Blob from Firebase URL
-                            const response = await fetch(photo.url);
-                            const blob = await response.blob();
-                            await uploadFileToDrive(blob, photo.name, folderId);
-                        } catch (pErr) {
-                            console.error("Failed to upload photo to Drive:", pErr);
+                    // 3. Upload Original Photos (only if they were uploaded to storage)
+                    if (storageUploadsEnabled && currentReviewReportData.photos && currentReviewReportData.photos.length > 0) {
+                        for (const photo of currentReviewReportData.photos) {
+                            if (photo.placeholder || photo.url === STORAGE_PLACEHOLDER_URL) continue;
+                            try {
+                                const response = await fetch(photo.url);
+                                const blob = await response.blob();
+                                await uploadFileToDrive(blob, photo.name, folderId);
+                            } catch (pErr) {
+                                console.error("Failed to upload photo to Drive:", pErr);
+                            }
                         }
                     }
+
+                    // 4. Generate & Upload PDF (Stub - using jsPDF later/now)
+                    const pdfBlob = new Blob([`Incident Report for ${currentReviewReportData.project}\nDate: ${currentReviewReportData.date}\nDescription: ${currentReviewReportData.description}`], { type: 'text/plain' });
+                    await uploadFileToDrive(pdfBlob, 'Report_Summary.txt', folderId);
                 }
 
-                // 4. Generate & Upload PDF (Stub - using jsPDF later/now)
-                // For now we just create a text file as proof
-                const pdfBlob = new Blob([`Incident Report for ${currentReviewReportData.project}\nDate: ${currentReviewReportData.date}\nDescription: ${currentReviewReportData.description}`], { type: 'text/plain' });
-                await uploadFileToDrive(pdfBlob, 'Report_Summary.txt', folderId);
-
                 // 5. Cleanup Storage & Update Firestore
-                if (currentReviewReportData.photos && currentReviewReportData.photos.length > 0) {
+                if (storageUploadsEnabled && currentReviewReportData.photos && currentReviewReportData.photos.length > 0) {
                     for (const photo of currentReviewReportData.photos) {
                         try {
                             const photoRef = ref(storage, photo.path);
@@ -875,16 +985,24 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 }
 
+                const storageStatus = storageUploadsEnabled ? 'cleared_from_storage' : storagePlaceholderMessage;
+                const driveStatus = driveUploadsEnabled ? 'uploaded' : drivePlaceholderMessage;
+
                 await updateDoc(doc(db, "incident_reports", currentReviewReportId), {
                     status: 'approved',
                     adminSignature: adminCachedVectorData,
                     adminActionAt: new Date().toISOString(),
                     adminNote: adminNote.value,
                     driveFolderId: folderId,
-                    photos: [] // Clear photo refs as they are gone from Firebase Storage
+                    photos: storageUploadsEnabled ? [] : (currentReviewReportData.photos || []),
+                    storageStatus,
+                    driveStatus
                 });
 
-                alert("Report Approved & Uploaded to Drive!");
+                const successMsg = driveUploadsEnabled
+                    ? "Report Approved & Uploaded to Drive!"
+                    : "Report Approved. Uploads will resume once Drive and Storage are configured.";
+                alert(successMsg);
                 reportReviewModal.classList.add('hidden');
                 reviewsListModal.classList.remove('hidden');
                 renderPendingReports();
