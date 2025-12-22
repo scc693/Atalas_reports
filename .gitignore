@@ -4,3 +4,4 @@ node_modules/
 *-debug.log*
 .env*
 .vscode/
+dist/
