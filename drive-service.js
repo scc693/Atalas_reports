@@ -1,5 +1,7 @@
 import { driveConfig } from './firebase-config.js';
 
+const isDriveConfigured = driveConfig.clientId !== "YOUR_GOOGLE_CLIENT_ID" && driveConfig.apiKey !== "YOUR_GOOGLE_API_KEY";
+
 let tokenClient;
 let gapiInited = false;
 let gisInited = false;
@@ -26,6 +28,11 @@ function waitForScriptLoad(globalName, timeout = 5000) {
 }
 
 export async function initDriveAPI() {
+    if (!isDriveConfigured) {
+        console.warn("Google Drive is not configured. Skipping gapi init.");
+        return;
+    }
+
     const gapiObj = await waitForScriptLoad('gapi');
     if (!gapiObj) return;
 
@@ -43,6 +50,11 @@ export async function initDriveAPI() {
 }
 
 export async function initGIS() {
+    if (!isDriveConfigured) {
+        console.warn("Google Drive is not configured. Skipping GIS init.");
+        return;
+    }
+
     const googleObj = await waitForScriptLoad('google');
     if (!googleObj) return;
 
@@ -65,6 +77,11 @@ function checkAuth() {
 }
 
 export async function authenticateDrive() {
+    if (!isDriveConfigured) {
+        console.warn("Google Drive is not configured. Using placeholder authentication.");
+        return { placeholder: true };
+    }
+
     return new Promise((resolve, reject) => {
         tokenClient.callback = async (resp) => {
             if (resp.error !== undefined) {
@@ -77,6 +94,11 @@ export async function authenticateDrive() {
 }
 
 export async function createDriveFolder(folderName) {
+    if (!isDriveConfigured) {
+        console.warn("Google Drive is not configured. Returning placeholder folder ID.");
+        return 'DRIVE_SETUP_PENDING';
+    }
+
     const fileMetadata = {
         'name': folderName,
         'mimeType': 'application/vnd.google-apps.folder'
@@ -94,6 +116,11 @@ export async function createDriveFolder(folderName) {
 }
 
 export async function uploadFileToDrive(blob, fileName, folderId) {
+    if (!isDriveConfigured) {
+        console.warn("Google Drive is not configured. Skipping upload for", fileName);
+        return { placeholder: true, fileName };
+    }
+
     const accessToken = gapi.client.getToken().access_token;
     const metadata = {
         name: fileName,
@@ -111,3 +138,5 @@ export async function uploadFileToDrive(blob, fileName, folderId) {
     });
     return await res.json();
 }
+
+export { isDriveConfigured };
