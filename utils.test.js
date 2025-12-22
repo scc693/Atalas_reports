@@ -1,4 +1,4 @@
-import { formatTime } from './utils.js';
+import { formatTime, removeFromList, isNameInList } from './utils.js';
 
 describe('formatTime', () => {
     test('formats morning time correctly', () => {
@@ -21,9 +21,15 @@ describe('formatTime', () => {
         expect(formatTime(null)).toBe('');
         expect(formatTime(undefined)).toBe('');
     });
-});
 
-import { removeFromList } from './utils.js';
+    test('preserves leading zeros in minutes', () => {
+        expect(formatTime('09:05')).toBe('9:05 AM');
+    });
+
+    test('handles late-night times', () => {
+        expect(formatTime('23:59')).toBe('11:59 PM');
+    });
+});
 
 describe('removeFromList', () => {
     test('removes item from list', () => {
@@ -45,9 +51,13 @@ describe('removeFromList', () => {
     test('handles null list', () => {
         expect(removeFromList(null, 'Bob')).toEqual([]);
     });
-});
 
-import { isNameInList } from './utils.js';
+    test('does not mutate the original list', () => {
+        const list = ['Alice', 'Bob'];
+        removeFromList(list, 'Bob');
+        expect(list).toEqual(['Alice', 'Bob']);
+    });
+});
 
 describe('isNameInList', () => {
     test('returns true if name exists', () => {
@@ -72,5 +82,10 @@ describe('isNameInList', () => {
     test('handles null/undefined inputs', () => {
         expect(isNameInList(null, 'Alice')).toBe(false);
         expect(isNameInList([], null)).toBe(false);
+    });
+
+    test('returns false when objects lack a name property', () => {
+        const list = [{ title: 'Alice' }, { name: 'Bob' }];
+        expect(isNameInList(list, 'Alice')).toBe(false);
     });
 });
