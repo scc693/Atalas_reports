@@ -232,10 +232,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const hamburgerBtn = document.getElementById('hamburger-btn');
     const navMenu = document.getElementById('nav-menu');
 
+    const setMenuState = (isOpen) => {
+        navMenu.classList.toggle('open', isOpen);
+        hamburgerBtn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+    };
+
     if (hamburgerBtn && navMenu) {
+        setMenuState(false);
+
         hamburgerBtn.addEventListener('click', (e) => {
             e.stopPropagation(); // Prevent triggering the window click listener immediately
-            navMenu.classList.toggle('open');
+            setMenuState(!navMenu.classList.contains('open'));
         });
 
         // Close menu when clicking outside
@@ -244,7 +251,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (navMenu.classList.contains('open') &&
                 !navMenu.contains(e.target) &&
                 e.target !== hamburgerBtn) {
-                navMenu.classList.remove('open');
+                setMenuState(false);
             }
         });
 
@@ -254,7 +261,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Don't close if it's the settings button as that opens a modal, 
                 // but actually it might be fine to close the menu behind the modal.
                 // Let's close it.
-                navMenu.classList.remove('open');
+                setMenuState(false);
             });
         });
     }
