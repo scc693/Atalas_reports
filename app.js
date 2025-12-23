@@ -16,6 +16,8 @@ import {
 } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js";
 import {
     signInWithPopup,
+    signInWithRedirect,
+    getRedirectResult,
     GoogleAuthProvider,
     onAuthStateChanged,
     signOut
@@ -43,13 +45,48 @@ function initializeAppLogic() {
 
     // --- Auth Logic ---
     const provider = new GoogleAuthProvider();
+    const prefersRedirect = () =>
+        window.matchMedia('(display-mode: standalone)').matches ||
+        window.navigator.standalone === true;
+
+    const startRedirectSignIn = () => {
+        console.log("Starting redirect sign-in");
+        signInWithRedirect(auth, provider).catch((error) => {
+            console.error("Redirect login failed:", error);
+            alert("Login failed: " + error.message);
+        });
+    };
+
+    getRedirectResult(auth)
+        .then((result) => {
+            if (result?.user) {
+                console.log("User signed in via redirect:", result.user);
+            }
+        })
+        .catch((error) => {
+            console.error("Redirect result error:", error);
+            alert("Login failed: " + error.message);
+        });
 
     googleLoginBtn.addEventListener('click', () => {
         console.log("Login button clicked"); // Debug log
+
+        if (prefersRedirect()) {
+            startRedirectSignIn();
+            return;
+        }
+
         signInWithPopup(auth, provider)
             .then((result) => {
                 console.log("User signed in:", result.user);
             }).catch((error) => {
+                if (error.code === 'auth/operation-not-supported-in-this-environment' ||
+                    error.code === 'auth/popup-blocked') {
+                    console.warn("Popup sign-in not supported. Falling back to redirect.", error);
+                    startRedirectSignIn();
+                    return;
+                }
+
                 console.error("Login failed:", error);
                 alert("Login failed: " + error.message);
             });
