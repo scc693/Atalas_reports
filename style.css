@@ -118,6 +118,8 @@ header {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
     border-bottom: 2px solid var(--primary-color);
     margin-bottom: 20px;
     padding-bottom: 10px;
@@ -439,12 +441,18 @@ button#generate-pdf {
 }
 
 /* Header Actions */
+.header-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-left: auto;
+    position: relative;
+}
+
 .header-actions {
     display: flex;
     gap: 10px;
     align-items: center;
-    position: relative;
-    /* For absolute positioning of nav-menu on mobile */
 }
 
 #lang-btn {
@@ -458,30 +466,30 @@ button#generate-pdf {
     background-color: var(--border-light);
 }
 
-/* Hamburger Menu Default (Mobile) */
 #hamburger-btn {
-    display: block;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     background: none;
     border: 1px solid var(--border-color);
     color: var(--text-main);
     font-size: 1.5rem;
-    padding: 5px 10px;
+    padding: 6px 10px;
     cursor: pointer;
 }
 
 #nav-menu {
     display: none;
-    /* Hidden by default on mobile */
     position: absolute;
-    top: 100%;
+    top: calc(100% + 8px);
     right: 0;
     background-color: var(--bg-container);
     border: 1px solid var(--border-color);
     box-shadow: 0 4px 6px var(--shadow-color);
     flex-direction: column;
-    padding: 10px;
+    padding: 12px;
     z-index: 1000;
-    width: 200px;
+    min-width: 220px;
     gap: 10px;
 }
 
@@ -492,45 +500,27 @@ button#generate-pdf {
 #nav-menu button {
     width: 100%;
     margin-left: 0 !important;
-    /* Override inline styles if any */
     text-align: left;
 }
 
 #user-display-name {
     display: block;
-    padding: 5px 10px;
+    padding: 6px 10px 10px;
     border-bottom: 1px solid var(--border-light);
-    margin-bottom: 5px;
+    margin-bottom: 2px;
+    font-weight: bold;
 }
 
 /* Desktop / Tablet Responsiveness */
 @media (min-width: 768px) {
-    #hamburger-btn {
-        display: none;
-    }
-
     #nav-menu {
-        display: flex;
-        position: static;
-        flex-direction: row;
-        border: none;
-        box-shadow: none;
-        padding: 0;
-        width: auto;
-        background: none;
-        align-items: center;
-        gap: 10px;
-    }
-
-    #nav-menu.open {
-        display: flex;
-        /* Ensure it stays visible */
+        min-width: 240px;
     }
 
     #user-display-name {
         border-bottom: none;
         margin-bottom: 0;
-        padding: 0;
+        padding: 0 0 4px;
     }
 
     #logout-btn {
@@ -601,69 +591,22 @@ button#generate-pdf {
     }
 }
 
-/* Header Controls Wrapper */
-.header-controls {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-
-/* Hamburger Menu */
-#hamburger-btn {
-    display: none;
-    /* Hidden by default on desktop */
-    background: none;
-    border: none;
-    color: var(--text-main);
-    font-size: 1.5rem;
-    cursor: pointer;
-    padding: 5px;
-}
-
-#nav-menu {
-    display: flex;
-    gap: 10px;
-    align-items: center;
-}
-
-/* Mobile Responsive Header */
 @media (max-width: 767px) {
+    header {
+        align-items: flex-start;
+    }
+
+    .header-controls {
+        order: 3;
+        width: 100%;
+        justify-content: flex-end;
+    }
+
     #hamburger-btn {
         display: block;
-        order: 2;
-        /* After title/lang */
     }
 
-    /* Hide normal nav items on mobile by default */
     #nav-menu {
-        display: none;
-        flex-direction: column;
-        position: absolute;
-        top: 60px;
-        /* Below header */
-        right: 0;
-        background-color: var(--bg-container);
-        width: 100%;
-        padding: 20px;
-        box-shadow: 0 5px 10px var(--shadow-color);
-        z-index: 1000;
-        border-bottom: 2px solid var(--primary-color);
-    }
-
-    #nav-menu.open {
-        display: flex;
-    }
-
-    #nav-menu button {
-        width: 100%;
-        text-align: left;
-        padding: 15px;
-        border-bottom: 1px solid var(--border-light);
-    }
-
-    .header-actions {
-        /* On mobile, this container wrapper inside nav-menu might need checking */
-        flex-direction: column;
-        width: 100%;
+        width: min(320px, 90vw);
     }
 }
