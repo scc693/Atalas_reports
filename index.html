@@ -319,6 +319,68 @@
                     <button id="add-admin-btn">Add</button>
                 </div>
             </div>
+
+            <div class="settings-section">
+                <h3>Signature Settings</h3>
+                <button id="reset-passphrase-btn" style="background-color: #ff9800;">Reset Multi-Device
+                    Passphrase</button>
+                <p style="font-size: 0.85em; color: #666; margin-top: 5px;">This will clear your saved signature and
+                    allow you to set a new passphrase.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Multi-Device Signature Choice Modal -->
+    <div id="signature-save-modal" class="modal hidden">
+        <div class="modal-content" style="max-width: 400px;">
+            <span class="close-modal" id="close-signature-save-modal">&times;</span>
+            <h2>Save Signature</h2>
+            <p>Your signature will be encrypted for security.</p>
+
+            <div class="form-group" style="margin: 15px 0;">
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                    <input type="checkbox" id="multi-device-checkbox">
+                    <span>Access this signature on other devices</span>
+                </label>
+            </div>
+
+            <div id="passphrase-section" class="hidden">
+                <div class="form-group">
+                    <label for="signature-passphrase">Create a passphrase:</label>
+                    <input type="password" id="signature-passphrase" placeholder="Enter a memorable passphrase">
+                </div>
+                <div class="form-group">
+                    <label for="signature-passphrase-confirm">Confirm passphrase:</label>
+                    <input type="password" id="signature-passphrase-confirm" placeholder="Re-enter passphrase">
+                </div>
+                <p style="font-size: 0.85em; color: #666;">You'll need this passphrase to access your signature on other
+                    devices.</p>
+            </div>
+
+            <div class="actions" style="margin-top: 15px;">
+                <button id="confirm-save-signature-btn" style="background-color: var(--btn-success);">Save
+                    Signature</button>
+                <button id="cancel-save-signature-btn" style="background-color: #ccc;">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Passphrase Entry Modal (for loading on new device) -->
+    <div id="passphrase-entry-modal" class="modal hidden">
+        <div class="modal-content" style="max-width: 400px;">
+            <span class="close-modal" id="close-passphrase-entry-modal">&times;</span>
+            <h2>Unlock Signature</h2>
+            <p>Enter your passphrase to access your signature on this device.</p>
+
+            <div class="form-group" style="margin: 15px 0;">
+                <label for="unlock-passphrase">Passphrase:</label>
+                <input type="password" id="unlock-passphrase" placeholder="Enter your passphrase">
+            </div>
+
+            <div class="actions" style="margin-top: 15px;">
+                <button id="confirm-unlock-btn" style="background-color: var(--btn-success);">Unlock</button>
+                <button id="cancel-unlock-btn" style="background-color: #ccc;">Cancel</button>
+            </div>
         </div>
     </div>
 

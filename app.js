@@ -30,6 +30,16 @@ import {
 import { formatTime, removeFromList, isNameInList, validateIncidentForm } from './utils.js';
 import { translations } from './translations.js';
 import { initDriveAPI, initGIS, authenticateDrive, createDriveFolder, uploadFileToDrive, isDriveConfigured } from './drive-service.js';
+import {
+    ensureDataKey,
+    encryptSignature,
+    decryptSignature,
+    wrapKeyWithPassphrase,
+    unwrapKeyWithPassphrase,
+    saveDataKey,
+    loadDataKey,
+    clearDataKey
+} from './signatureEncryption.js';
 
 // Main Execution
 const isConfigured = app.options.apiKey !== "YOUR_API_KEY";
@@ -38,6 +48,12 @@ const driveUploadsEnabled = false; // TODO: enable when Google Drive integration
 const driveConfigured = isDriveConfigured;
 const storagePlaceholderMessage = "Firebase Storage not configured. Photos are marked as pending upload.";
 const drivePlaceholderMessage = "Google Drive not configured. Approval uploads are pending setup.";
+
+// --- Signature Loading Coordination ---
+// These module-level variables coordinate between auth state and canvas initialization
+let pendingUserEmail = null;
+let signaturePadReady = false;
+let loadCloudSignatureFn = null;
 
 // --- DOM Elements & Auth Setup ---
 function initializeAppLogic() {
@@ -137,8 +153,11 @@ function initializeAppLogic() {
 
                 checkUserRole(user.email);
                 // Note: setupRealtimeListeners is called later within DOMContentLoaded
-                // Auto-load signature from Cloud if available
-                loadCloudSignature(user.email);
+                // Store email for signature loading; actual load happens when canvas is ready
+                pendingUserEmail = user.email;
+                if (signaturePadReady && loadCloudSignatureFn) {
+                    loadCloudSignatureFn(user.email);
+                }
             }
         } else {
             loginOverlay.style.display = 'flex';
@@ -1091,6 +1110,15 @@ document.addEventListener('DOMContentLoaded', () => {
         // Try local load immediately for speed/offline, 
         // Cloud load will override it shortly after if logged in.
         loadLocalSignature();
+
+        // Signal that canvas is ready and expose the load function
+        loadCloudSignatureFn = loadCloudSignature;
+        signaturePadReady = true;
+
+        // If user was already authenticated before canvas was ready, load their signature now
+        if (pendingUserEmail) {
+            loadCloudSignature(pendingUserEmail);
+        }
     }, 100);
 
     // Check for Share Support
@@ -1680,39 +1708,121 @@ document.addEventListener('DOMContentLoaded', () => {
         cachedVectorData = [];
     });
 
-    // Save Signature
+    // Save Signature - Opens modal for encryption options
     saveSignatureBtn.addEventListener('click', async () => {
         if (!signatureHasData) {
             alert("Please sign before saving.");
             return;
         }
 
-        let data;
-        if (cachedBackgroundImage) {
-            data = signaturePad.toDataURL(); // Save image as string
+        // Show the multi-device choice modal
+        const signatureSaveModal = document.getElementById('signature-save-modal');
+        const multiDeviceCheckbox = document.getElementById('multi-device-checkbox');
+        const passphraseSection = document.getElementById('passphrase-section');
+
+        // Reset modal state
+        multiDeviceCheckbox.checked = false;
+        passphraseSection.classList.add('hidden');
+        document.getElementById('signature-passphrase').value = '';
+        document.getElementById('signature-passphrase-confirm').value = '';
+
+        signatureSaveModal.classList.remove('hidden');
+    });
+
+    // Multi-device checkbox toggle
+    document.getElementById('multi-device-checkbox').addEventListener('change', (e) => {
+        const passphraseSection = document.getElementById('passphrase-section');
+        if (e.target.checked) {
+            passphraseSection.classList.remove('hidden');
         } else {
-            data = JSON.stringify(signaturePad.toData()); // Save strokes
+            passphraseSection.classList.add('hidden');
         }
+    });
 
-        // 1. Save Local
-        localStorage.setItem('atlas_signature', data);
+    // Close signature save modal
+    document.getElementById('close-signature-save-modal').addEventListener('click', () => {
+        document.getElementById('signature-save-modal').classList.add('hidden');
+    });
+    document.getElementById('cancel-save-signature-btn').addEventListener('click', () => {
+        document.getElementById('signature-save-modal').classList.add('hidden');
+    });
 
-        // 2. Save Cloud (if logged in & configured)
-        if (isConfigured && auth.currentUser) {
-            try {
-                // We'll store it in the user's document under 'signature' field
-                const userEmail = auth.currentUser.email;
-                await setDoc(doc(db, "users", userEmail), {
-                    signature: data
-                }, { merge: true });
-                console.log("Signature saved to cloud.");
-            } catch (err) {
-                console.error("Error saving signature to cloud:", err);
-                alert("Saved locally, but failed to sync to cloud.");
+    // Confirm save signature with encryption
+    document.getElementById('confirm-save-signature-btn').addEventListener('click', async () => {
+        const multiDevice = document.getElementById('multi-device-checkbox').checked;
+        const passphrase = document.getElementById('signature-passphrase').value;
+        const passphraseConfirm = document.getElementById('signature-passphrase-confirm').value;
+
+        // Validate passphrase if multi-device
+        if (multiDevice) {
+            if (!passphrase || passphrase.length < 4) {
+                alert("Please enter a passphrase (at least 4 characters).");
+                return;
+            }
+            if (passphrase !== passphraseConfirm) {
+                alert("Passphrases do not match.");
+                return;
             }
         }
 
-        alert("Signature saved!");
+        // Get signature data
+        let signatureRawData;
+        if (cachedBackgroundImage) {
+            signatureRawData = signaturePad.toDataURL();
+        } else {
+            signatureRawData = JSON.stringify(signaturePad.toData());
+        }
+
+        try {
+            // Ensure we have an encryption key
+            const { key, keyVersion, isNew } = await ensureDataKey();
+
+            // Encrypt the signature
+            const { ciphertext, iv } = await encryptSignature(signatureRawData, key);
+
+            // Prepare cloud data
+            let cloudData = {
+                signatureEncrypted: {
+                    ciphertext,
+                    iv,
+                    keyVersion,
+                    isMultiDevice: multiDevice,
+                    createdAt: new Date().toISOString()
+                },
+                // Clear old unencrypted signature field
+                signature: null
+            };
+
+            // If multi-device, wrap the key with passphrase and store in cloud
+            if (multiDevice) {
+                const wrappedKeyData = await wrapKeyWithPassphrase(key, passphrase);
+                cloudData.signatureEncrypted.wrappedKey = wrappedKeyData.wrappedKey;
+                cloudData.signatureEncrypted.wrappedKeySalt = wrappedKeyData.salt;
+                cloudData.signatureEncrypted.wrappedKeyIv = wrappedKeyData.iv;
+            }
+
+            // Save to local storage (encrypted)
+            localStorage.setItem('atlas_signature_encrypted', JSON.stringify({
+                ciphertext,
+                iv,
+                keyVersion,
+                isMultiDevice: multiDevice
+            }));
+
+            // Save to cloud if configured
+            if (isConfigured && auth.currentUser) {
+                const userEmail = auth.currentUser.email;
+                await setDoc(doc(db, "users", userEmail), cloudData, { merge: true });
+                console.log("Encrypted signature saved to cloud.");
+            }
+
+            document.getElementById('signature-save-modal').classList.add('hidden');
+            alert("Signature saved securely!");
+
+        } catch (err) {
+            console.error("Error saving encrypted signature:", err);
+            alert("Failed to save signature. Error: " + err.message);
+        }
     });
 
     // Load Saved Signature (Manual Button)
@@ -1726,7 +1836,24 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        // Fallback to Local
+        // Fallback to Local (check encrypted first, then legacy)
+        const localEncrypted = localStorage.getItem('atlas_signature_encrypted');
+        if (localEncrypted) {
+            try {
+                const encData = JSON.parse(localEncrypted);
+                const keyData = await loadDataKey();
+                if (keyData) {
+                    const decrypted = await decryptSignature(encData.ciphertext, encData.iv, keyData.key);
+                    loadSignatureData(decrypted);
+                    alert("Loaded signature from device storage.");
+                    return;
+                }
+            } catch (err) {
+                console.error("Error loading local encrypted signature:", err);
+            }
+        }
+
+        // Legacy unencrypted fallback
         const local = localStorage.getItem('atlas_signature');
         if (local) {
             loadSignatureData(local);
@@ -1739,31 +1866,87 @@ document.addEventListener('DOMContentLoaded', () => {
     // Delete Saved Signature
     deleteSignatureBtn.addEventListener('click', async () => {
         if (confirm("Delete saved signature? This will remove it from this device and your account.")) {
-            // 1. Remove Local
+            // 1. Remove Local (both encrypted and legacy)
             localStorage.removeItem('atlas_signature');
+            localStorage.removeItem('atlas_signature_encrypted');
 
-            // 2. Remove Cloud
+            // 2. Clear encryption key
+            await clearDataKey();
+
+            // 3. Remove Cloud
             if (isConfigured && auth.currentUser) {
                 try {
                     const userEmail = auth.currentUser.email;
-                    // Using updateDoc to delete a specific field is cleaner, 
-                    // but we need to import deleteField if we want to do that strictly.
-                    // For now, setting it to null or empty string is often sufficient, 
-                    // but let's try to just update it to null.
                     await setDoc(doc(db, "users", userEmail), {
-                        signature: null
+                        signature: null,
+                        signatureEncrypted: null
                     }, { merge: true });
                 } catch (err) {
                     console.error("Error deleting cloud signature:", err);
                 }
             }
+
+            // 4. Clear canvas
+            signaturePad.clear();
+            signatureHasData = false;
+            cachedBackgroundImage = null;
+            cachedVectorData = [];
+
             alert("Saved signature removed.");
         }
     });
 
-    // Load Signature Helper (Logic only)
+    // Reset Passphrase Button (in settings)
+    const resetPassphraseBtn = document.getElementById('reset-passphrase-btn');
+    if (resetPassphraseBtn) {
+        resetPassphraseBtn.addEventListener('click', async () => {
+            if (confirm("Reset passphrase? This will DELETE your saved signature and allow you to set a new passphrase.")) {
+                // Delete signature
+                localStorage.removeItem('atlas_signature');
+                localStorage.removeItem('atlas_signature_encrypted');
+                await clearDataKey();
+
+                if (isConfigured && auth.currentUser) {
+                    try {
+                        const userEmail = auth.currentUser.email;
+                        await setDoc(doc(db, "users", userEmail), {
+                            signature: null,
+                            signatureEncrypted: null
+                        }, { merge: true });
+                    } catch (err) {
+                        console.error("Error deleting cloud signature:", err);
+                    }
+                }
+
+                signaturePad.clear();
+                signatureHasData = false;
+                cachedBackgroundImage = null;
+                cachedVectorData = [];
+
+                alert("Passphrase reset. You can now save a new signature with a new passphrase.");
+            }
+        });
+    }
+
+    // Passphrase Entry Modal handlers
+    document.getElementById('close-passphrase-entry-modal').addEventListener('click', () => {
+        document.getElementById('passphrase-entry-modal').classList.add('hidden');
+    });
+    document.getElementById('cancel-unlock-btn').addEventListener('click', () => {
+        document.getElementById('passphrase-entry-modal').classList.add('hidden');
+    });
+
+    // Load Signature Helper (Logic only) - triggers resize to ensure proper rendering
     function loadSignatureData(dataString) {
         if (!dataString) return;
+
+        // For async fromDataURL, we need to ensure canvas is properly sized first
+        const ratio = Math.max(window.devicePixelRatio || 1, 1);
+        if (canvas.width !== canvas.offsetWidth * ratio || canvas.height !== canvas.offsetHeight * ratio) {
+            canvas.width = canvas.offsetWidth * ratio;
+            canvas.height = canvas.offsetHeight * ratio;
+            canvas.getContext("2d").scale(ratio, ratio);
+        }
 
         signaturePad.clear();
         if (dataString.trim().startsWith('[')) {
@@ -1777,34 +1960,143 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.error("Error loading signature data", e);
             }
         } else {
-            signaturePad.fromDataURL(dataString);
+            // fromDataURL is async - use callback/promise form if available
+            signaturePad.fromDataURL(dataString, { ratio }).then(() => {
+                signatureHasData = true;
+                cachedBackgroundImage = dataString;
+                cachedVectorData = [];
+            }).catch(err => {
+                console.error("Error loading signature from data URL:", err);
+            });
+            // Also set state immediately for sync fallback
             signatureHasData = true;
             cachedBackgroundImage = dataString;
             cachedVectorData = [];
         }
     }
 
-    // Load Cloud Signature Helper
+    // Load Cloud Signature Helper - handles both encrypted and legacy
     async function loadCloudSignature(email) {
         try {
-            const userDoc = await getDoc(doc(db, "users", email));
-            if (userDoc.exists()) {
-                const data = userDoc.data();
-                if (data.signature) {
-                    loadSignatureData(data.signature);
-                    // Also update local storage to keep them in sync
-                    localStorage.setItem('atlas_signature', data.signature);
-                    return true;
+            const userDocData = await getDoc(doc(db, "users", email));
+            if (!userDocData.exists()) return false;
+
+            const data = userDocData.data();
+
+            // Check for encrypted signature first
+            if (data.signatureEncrypted && data.signatureEncrypted.ciphertext) {
+                const encData = data.signatureEncrypted;
+
+                // Try to load local key first
+                let keyData = await loadDataKey();
+
+                if (keyData) {
+                    // We have a local key, try to decrypt
+                    try {
+                        const decrypted = await decryptSignature(encData.ciphertext, encData.iv, keyData.key);
+                        loadSignatureData(decrypted);
+                        return true;
+                    } catch (err) {
+                        console.warn("Decryption with local key failed, may need passphrase:", err);
+                    }
                 }
+
+                // If multi-device and no local key or decryption failed, prompt for passphrase
+                if (encData.isMultiDevice && encData.wrappedKey) {
+                    return await promptForPassphrase(encData);
+                }
+
+                return false;
             }
+
+            // Fallback to legacy unencrypted signature
+            if (data.signature) {
+                loadSignatureData(data.signature);
+                localStorage.setItem('atlas_signature', data.signature);
+                return true;
+            }
+
+            return false;
         } catch (err) {
             console.error("Error loading cloud signature:", err);
+            return false;
         }
-        return false;
+    }
+
+    // Prompt for passphrase to unlock multi-device signature
+    async function promptForPassphrase(encData) {
+        return new Promise((resolve) => {
+            const modal = document.getElementById('passphrase-entry-modal');
+            const unlockBtn = document.getElementById('confirm-unlock-btn');
+            const passphraseInput = document.getElementById('unlock-passphrase');
+
+            passphraseInput.value = '';
+            modal.classList.remove('hidden');
+
+            const handleUnlock = async () => {
+                const passphrase = passphraseInput.value;
+                if (!passphrase) {
+                    alert("Please enter your passphrase.");
+                    return;
+                }
+
+                try {
+                    // Unwrap the key with passphrase
+                    const unwrappedKey = await unwrapKeyWithPassphrase(
+                        encData.wrappedKey,
+                        encData.wrappedKeySalt,
+                        encData.wrappedKeyIv,
+                        passphrase
+                    );
+
+                    // Save the key locally for future use
+                    await saveDataKey(unwrappedKey, encData.keyVersion || 1);
+
+                    // Decrypt the signature
+                    const decrypted = await decryptSignature(encData.ciphertext, encData.iv, unwrappedKey);
+                    loadSignatureData(decrypted);
+
+                    modal.classList.add('hidden');
+                    unlockBtn.removeEventListener('click', handleUnlock);
+                    resolve(true);
+                } catch (err) {
+                    console.error("Passphrase unlock failed:", err);
+                    alert("Incorrect passphrase or decryption failed. Please try again.");
+                }
+            };
+
+            unlockBtn.addEventListener('click', handleUnlock);
+
+            // Handle cancel
+            const handleCancel = () => {
+                modal.classList.add('hidden');
+                unlockBtn.removeEventListener('click', handleUnlock);
+                resolve(false);
+            };
+            document.getElementById('cancel-unlock-btn').addEventListener('click', handleCancel, { once: true });
+            document.getElementById('close-passphrase-entry-modal').addEventListener('click', handleCancel, { once: true });
+        });
     }
 
     // Initial Load (Local fallback on startup)
-    function loadLocalSignature() {
+    async function loadLocalSignature() {
+        // Check for encrypted signature first
+        const localEncrypted = localStorage.getItem('atlas_signature_encrypted');
+        if (localEncrypted) {
+            try {
+                const encData = JSON.parse(localEncrypted);
+                const keyData = await loadDataKey();
+                if (keyData) {
+                    const decrypted = await decryptSignature(encData.ciphertext, encData.iv, keyData.key);
+                    loadSignatureData(decrypted);
+                    return;
+                }
+            } catch (err) {
+                console.error("Error loading local encrypted signature:", err);
+            }
+        }
+
+        // Legacy fallback
         const saved = localStorage.getItem('atlas_signature');
         if (saved) {
             loadSignatureData(saved);
