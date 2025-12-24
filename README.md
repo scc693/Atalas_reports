@@ -20,4 +20,3 @@ This is an archived legacy branch of a Progressive Web App (PWA) for generating 
 6. Click **Save**.
 
 Your app will be available at `https://scc693.github.io/Atlas_reports/`.
-
