@@ -6,7 +6,6 @@ import {
     deleteDoc,
     doc,
     updateDoc,
-    enableIndexedDbPersistence,
     query,
     orderBy,
     getDocs,
@@ -137,7 +136,7 @@ function initializeAppLogic() {
                 }
 
                 checkUserRole(user.email);
-                setupRealtimeListeners();
+                // Note: setupRealtimeListeners is called later within DOMContentLoaded
                 // Auto-load signature from Cloud if available
                 loadCloudSignature(user.email);
             }
@@ -152,28 +151,33 @@ function initializeAppLogic() {
         try {
             console.log(`Checking role for: ${email}`);
             const userDoc = await getDoc(doc(db, "users", email));
+            // Get DOM elements directly to avoid scope issues
+            const settingsBtnEl = document.getElementById('settings-btn');
+            const reviewReportsBtnEl = document.getElementById('review-reports-btn');
 
             if (userDoc.exists()) {
                 const userData = userDoc.data();
                 console.log("User data found:", userData);
                 if (userData.role === 'admin') {
                     console.log("User is Admin. Revealing controls.");
-                    settingsBtn.classList.remove('hidden');
-                    reviewReportsBtn.classList.remove('hidden');
+                    if (settingsBtnEl) settingsBtnEl.classList.remove('hidden');
+                    if (reviewReportsBtnEl) reviewReportsBtnEl.classList.remove('hidden');
                 } else {
                     console.log(`User role is '${userData.role}', not 'admin'. Hiding controls.`);
-                    settingsBtn.classList.add('hidden');
-                    reviewReportsBtn.classList.add('hidden');
+                    if (settingsBtnEl) settingsBtnEl.classList.add('hidden');
+                    if (reviewReportsBtnEl) reviewReportsBtnEl.classList.add('hidden');
                 }
             } else {
                 console.log("No user document found in 'users' collection.");
-                settingsBtn.classList.add('hidden');
-                reviewReportsBtn.classList.add('hidden');
+                if (settingsBtnEl) settingsBtnEl.classList.add('hidden');
+                if (reviewReportsBtnEl) reviewReportsBtnEl.classList.add('hidden');
             }
         } catch (error) {
             console.error("Error checking role:", error);
-            settingsBtn.classList.add('hidden');
-            reviewReportsBtn.classList.add('hidden');
+            const settingsBtnEl = document.getElementById('settings-btn');
+            const reviewReportsBtnEl = document.getElementById('review-reports-btn');
+            if (settingsBtnEl) settingsBtnEl.classList.add('hidden');
+            if (reviewReportsBtnEl) reviewReportsBtnEl.classList.add('hidden');
         }
     }
 
@@ -230,17 +234,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let workers = [];
     let projects = [];
 
-    // Only enable Firestore persistence if configured
-    if (isConfigured) {
-        enableIndexedDbPersistence(db)
-            .catch((err) => {
-                if (err.code == 'failed-precondition') {
-                    console.log('Persistence failed: Multiple tabs open');
-                } else if (err.code == 'unimplemented') {
-                    console.log('Persistence failed: Browser not supported');
-                }
-            });
-    }
+    // Firestore persistence is now configured in firebase-config.js
 
     // --- DOM Elements ---
     const projectSelect = document.getElementById('project-select');

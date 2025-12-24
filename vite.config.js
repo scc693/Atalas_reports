@@ -5,22 +5,25 @@ export default defineConfig({
   plugins: [
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'mask-icon.svg'],
+      includeAssets: ['icon-192.svg', 'icon-512.svg'],
       manifest: {
         name: 'Atlas Daily Report',
         short_name: 'Atlas Report',
         description: 'PWA for generating Atlas Daily Reports',
-        theme_color: '#ffffff',
+        theme_color: '#4A90D9',
+        background_color: '#ffffff',
         icons: [
           {
-            src: 'pwa-192x192.png',
+            src: 'icon-192.svg',
             sizes: '192x192',
-            type: 'image/png'
+            type: 'image/svg+xml',
+            purpose: 'any'
           },
           {
-            src: 'pwa-512x512.png',
+            src: 'icon-512.svg',
             sizes: '512x512',
-            type: 'image/png'
+            type: 'image/svg+xml',
+            purpose: 'any maskable'
           }
         ]
       },
