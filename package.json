@@ -1,7 +1,7 @@
 {
   "name": "atlas_reports",
   "version": "1.0.0",
-  "description": "This is a Progressive Web App (PWA) for generating Atlas Daily Reports. It is designed to be hosted on GitHub Pages.",
+  "description": "A Progressive Web App (PWA) for generating Atlas Daily Reports, hosted on Firebase Hosting.",
   "main": "app.js",
   "type": "module",
   "scripts": {

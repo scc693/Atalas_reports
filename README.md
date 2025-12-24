@@ -1,6 +1,6 @@
 # Atlas Daily Report PWA
 
-This is a Progressive Web App (PWA) for generating Atlas Daily Reports. It is designed to be hosted on GitHub Pages.
+A Progressive Web App (PWA) for generating Atlas Daily Reports, hosted on Firebase Hosting.
 
 ## Features
 
@@ -10,16 +10,36 @@ This is a Progressive Web App (PWA) for generating Atlas Daily Reports. It is de
 - **PDF Generation**: Generates a PDF formatted to match the Atlas Daily Report specifications.
 - **Offline Capable**: Includes a Service Worker for offline access (after first visit).
 
-## Hosting on GitHub Pages
+## Deployment
 
-1. Commit and push these files to a GitHub repository.
-2. Go to the repository **Settings**.
-3. Navigate to **Pages** in the sidebar.
-4. Under **Source**, select `Deploy from a branch`.
-5. Select your main branch and `/ (root)` folder.
-6. Click **Save**.
+This project uses **Firebase Hosting** with automatic deployments via GitHub Actions.
 
-Your app will be available at `https://scc693.github.io/Atlas_reports/`.
+### Automatic Deployment (CI/CD)
+
+Pushing to the `Main` branch triggers an automatic build and deploy:
+
+1. GitHub Actions runs `npm ci && npm run build`.
+2. The `dist/` folder is deployed to Firebase Hosting.
+
+### Live URL
+
+The app is available at: **<https://atlas-reports-ed500.web.app>**
+
+### Manual Deployment
+
+To deploy manually:
+
+```bash
+npm run build
+firebase deploy --only hosting
+```
+
+## Local Development
+
+```bash
+npm install
+npm run dev
+```
 
 ## Usage
 
