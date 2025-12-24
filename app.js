@@ -13,7 +13,7 @@ import {
     where,
     getDoc,
     setDoc
-} from "https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js";
+} from "firebase/firestore";
 import {
     signInWithPopup,
     signInWithRedirect,
@@ -21,13 +21,13 @@ import {
     GoogleAuthProvider,
     onAuthStateChanged,
     signOut
-} from "https://www.gstatic.com/firebasejs/12.7.0/firebase-auth.js";
+} from "firebase/auth";
 import {
     ref,
     uploadBytes,
     getDownloadURL,
     deleteObject
-} from "https://www.gstatic.com/firebasejs/12.7.0/firebase-storage.js";
+} from "firebase/storage";
 import { formatTime, removeFromList, isNameInList, validateIncidentForm } from './utils.js';
 import { translations } from './translations.js';
 import { initDriveAPI, initGIS, authenticateDrive, createDriveFolder, uploadFileToDrive, isDriveConfigured } from './drive-service.js';
