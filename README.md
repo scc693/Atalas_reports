@@ -1,6 +1,6 @@
 # Atlas Daily Report PWA
 
-This is a Progressive Web App (PWA) for generating Atlas Daily Reports. It is designed to be hosted on GitHub Pages.
+This is an archived legacy branch of a Progressive Web App (PWA) for generating Atlas Daily Reports. It is designed to be hosted on GitHub Pages and is no longer in use. Development has moved to the main branch and is being actively developed. This legacy branch is no longer supported and is not recommended for use, it represents an older version 0.5 of the application.
 
 ## Features
 
@@ -21,11 +21,3 @@ This is a Progressive Web App (PWA) for generating Atlas Daily Reports. It is de
 
 Your app will be available at `https://scc693.github.io/Atlas_reports/`.
 
-## Usage
-
-1. Open the app URL on your device.
-2. Fill in the date, project details, and foreman name.
-3. Add crew members and adjust their hours.
-4. Fill out the report sections.
-5. Sign in the signature box.
-6. Click **Generate PDF** to download the report.
