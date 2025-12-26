@@ -262,7 +262,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const addWorkerBtn = document.getElementById('add-worker-btn');
     const settingsBtn = document.getElementById('settings-btn');
     const settingsModal = document.getElementById('settings-modal');
-    const closeModal = document.querySelector('.close-modal');
+    const settingsModalCloseBtn = settingsModal ? settingsModal.querySelector('.close-modal') : null;
     const projectsList = document.getElementById('projects-list');
     const workersList = document.getElementById('workers-list');
     const addProjectBtn = document.getElementById('add-project-btn');
@@ -1632,9 +1632,11 @@ document.addEventListener('DOMContentLoaded', () => {
         settingsModal.classList.remove('hidden');
     });
 
-    closeModal.addEventListener('click', () => {
-        settingsModal.classList.add('hidden');
-    });
+    if (settingsModalCloseBtn) {
+        settingsModalCloseBtn.addEventListener('click', () => {
+            settingsModal.classList.add('hidden');
+        });
+    }
 
     window.addEventListener('click', (e) => {
         if (e.target === settingsModal) {
