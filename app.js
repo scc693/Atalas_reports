@@ -72,9 +72,22 @@ function initializeAppLogic() {
 
     // --- Auth Logic ---
     const provider = new GoogleAuthProvider();
-    const prefersRedirect = () =>
-        window.matchMedia('(display-mode: standalone)').matches ||
-        window.navigator.standalone === true;
+    const isStandaloneDisplay = () => {
+        // iOS PWAs don't reliably report standalone mode via a single flag
+        // across versions, so check multiple indicators.
+        return (
+            window.matchMedia('(display-mode: standalone)').matches ||
+            window.matchMedia('(display-mode: fullscreen)').matches ||
+            window.navigator.standalone === true
+        );
+    };
+
+    const prefersRedirect = () => {
+        const isIOS = /iphone|ipad|ipod/i.test(window.navigator.userAgent || '');
+        // Force redirect flows for PWAs and iOS devices where popups are blocked
+        // (e.g., standalone mode on iOS Safari).
+        return isStandaloneDisplay() || isIOS;
+    };
 
     const startRedirectSignIn = () => {
         console.log("Starting redirect sign-in");
@@ -107,8 +120,12 @@ function initializeAppLogic() {
             .then((result) => {
                 console.log("User signed in:", result.user);
             }).catch((error) => {
-                if (error.code === 'auth/operation-not-supported-in-this-environment' ||
-                    error.code === 'auth/popup-blocked') {
+                const popupNotSupported = (
+                    error.code === 'auth/operation-not-supported-in-this-environment' ||
+                    error.code === 'auth/popup-blocked'
+                );
+
+                if (popupNotSupported || prefersRedirect()) {
                     console.warn("Popup sign-in not supported. Falling back to redirect.", error);
                     startRedirectSignIn();
                     return;
