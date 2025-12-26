@@ -1,6 +1,12 @@
 import { initializeApp } from "firebase/app";
 import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from "firebase/firestore";
-import { getAuth } from "firebase/auth";
+import {
+  initializeAuth,
+  indexedDBLocalPersistence,
+  browserLocalPersistence,
+  browserSessionPersistence,
+  browserPopupRedirectResolver,
+} from "firebase/auth";
 import { getStorage } from "firebase/storage";
 
 // Helper to handle both Vite (import.meta.env) and Jest (process.env)
@@ -41,7 +47,20 @@ const db = initializeFirestore(app, {
   })
 });
 
-const auth = getAuth(app);
+// Use explicit Auth initialization so we can control persistence.
+// Safari PWAs (especially on iOS) sometimes run in environments where
+// third-party cookies and localStorage behave differently, which can
+// cause redirect-based sign-ins to "forget" the authenticated session.
+// Providing multiple persistence fallbacks anchored by IndexedDB keeps
+// the redirect session available when the app re-opens in standalone mode.
+const auth = initializeAuth(app, {
+  persistence: [
+    indexedDBLocalPersistence,
+    browserLocalPersistence,
+    browserSessionPersistence,
+  ],
+  popupRedirectResolver: browserPopupRedirectResolver,
+});
 const storage = getStorage(app); // Initialize Storage
 
 export { app, db, auth, storage, driveConfig };
