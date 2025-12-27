@@ -32,8 +32,8 @@ const firebaseConfig = {
 
 // Google Drive API Config
 const driveConfig = {
-  clientId: "YOUR_GOOGLE_CLIENT_ID", // TODO: Replace with actual Client ID
-  apiKey: "YOUR_GOOGLE_API_KEY",    // TODO: Replace with actual API Key
+  clientId: getEnv('VITE_GOOGLE_CLIENT_ID'),
+  apiKey: getEnv('VITE_GOOGLE_API_KEY'),
   scopes: "https://www.googleapis.com/auth/drive.file"
 };
 

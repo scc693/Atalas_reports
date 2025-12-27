@@ -44,8 +44,8 @@ import {
 // Main Execution
 const isConfigured = app.options.apiKey !== "YOUR_API_KEY";
 const storageUploadsEnabled = true; // Firebase Storage is configured for incident photos
-const driveUploadsEnabled = false; // TODO: enable when Google Drive integration is configured
 const driveConfigured = isDriveConfigured;
+const driveUploadsEnabled = driveConfigured; // Enable uploads when Drive credentials are provided
 const storagePlaceholderMessage = "Firebase Storage not configured. Photos are marked as pending upload.";
 const drivePlaceholderMessage = "Google Drive not configured. Approval uploads are pending setup.";
 

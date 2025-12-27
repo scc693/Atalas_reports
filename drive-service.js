@@ -1,6 +1,6 @@
 import { driveConfig } from './firebase-config.js';
 
-const isDriveConfigured = driveConfig.clientId !== "YOUR_GOOGLE_CLIENT_ID" && driveConfig.apiKey !== "YOUR_GOOGLE_API_KEY";
+const isDriveConfigured = Boolean(driveConfig.clientId && driveConfig.apiKey);
 
 let tokenClient;
 let gapiInited = false;
