@@ -97,16 +97,35 @@ function initializeAppLogic() {
         });
     };
 
-    getRedirectResult(auth)
-        .then((result) => {
+    const originalLoginOverlayContent = loginOverlay ? loginOverlay.innerHTML : null;
+
+    const handleRedirectResult = async () => {
+        let redirectUser = null;
+
+        if (loginOverlay && originalLoginOverlayContent !== null) {
+            loginOverlay.innerHTML = '<div class="login-box"><div>Processing login...</div></div>';
+        }
+
+        try {
+            console.log("Checking for redirect result...");
+            const result = await getRedirectResult(auth);
             if (result?.user) {
+                redirectUser = result.user;
                 console.log("User signed in via redirect:", result.user);
+            } else {
+                console.log("No redirect result found");
             }
-        })
-        .catch((error) => {
+        } catch (error) {
             console.error("Redirect result error:", error);
             alert("Login failed: " + error.message);
-        });
+        } finally {
+            if (!redirectUser && loginOverlay && originalLoginOverlayContent !== null) {
+                loginOverlay.innerHTML = originalLoginOverlayContent;
+            }
+        }
+    };
+
+    handleRedirectResult();
 
     googleLoginBtn.addEventListener('click', () => {
         console.log("Login button clicked"); // Debug log
