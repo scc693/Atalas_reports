@@ -148,9 +148,7 @@ function initializeAppLogic() {
         }
     };
 
-    if (isConfigured) {
-        handleRedirectResult();
-    }
+    handleRedirectResult();
 
     googleLoginBtn.addEventListener('click', () => {
         console.log("Login button clicked"); // Debug log
@@ -277,29 +275,6 @@ function initializeAppLogic() {
         // Insert after header or at top of container
         if (container && container.firstChild) {
             container.insertBefore(alertDiv, container.firstChild);
-        }
-
-        // Allow bypassing login in Offline Mode
-        const loginBox = document.querySelector('.login-box');
-        if (loginBox) {
-            const offlineBtn = document.createElement('button');
-            offlineBtn.textContent = "Continue in Offline Mode";
-            offlineBtn.style.marginTop = "10px";
-            offlineBtn.style.backgroundColor = "#666";
-            offlineBtn.style.color = "white";
-            offlineBtn.style.padding = "10px";
-            offlineBtn.style.border = "none";
-            offlineBtn.style.borderRadius = "4px";
-            offlineBtn.style.cursor = "pointer";
-            offlineBtn.style.display = "block";
-            offlineBtn.style.width = "100%";
-
-            offlineBtn.addEventListener('click', () => {
-                loginOverlay.style.display = 'none';
-                appContent.classList.remove('hidden');
-            });
-
-            loginBox.appendChild(offlineBtn);
         }
     }
 }
