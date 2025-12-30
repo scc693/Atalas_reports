@@ -383,7 +383,15 @@ button#generate-pdf {
 /* Adjust table column widths */
 #crew-table th:nth-child(4),
 #crew-table td:nth-child(4) {
-    width: 50px;
+    width: 90px;
+}
+
+.hours-warning {
+    color: #d9534f;
+    font-size: 0.75rem;
+    display: block;
+    margin-top: 2px;
+    font-weight: bold;
 }
 
 #crew-table input[type="number"] {

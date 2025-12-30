@@ -30,6 +30,29 @@ import {
 import { formatTime, removeFromList, isNameInList, validateIncidentForm } from './utils.js';
 import { translations } from './translations.js';
 import { initDriveAPI, initGIS, authenticateDrive, createDriveFolder, uploadFileToDrive, isDriveConfigured } from './drive-service.js';
+
+function calculateHours(timeIn, timeOut) {
+    if (!timeIn || !timeOut) return { text: "0:00", isNextDay: false };
+
+    const [inHours, inMinutes] = timeIn.split(':').map(Number);
+    const [outHours, outMinutes] = timeOut.split(':').map(Number);
+
+    let totalInMinutes = inHours * 60 + inMinutes;
+    let totalOutMinutes = outHours * 60 + outMinutes;
+    let isNextDay = false;
+
+    if (totalOutMinutes < totalInMinutes) {
+        totalOutMinutes += 24 * 60; // Add 24 hours
+        isNextDay = true;
+    }
+
+    const diffMinutes = totalOutMinutes - totalInMinutes;
+    const hours = Math.floor(diffMinutes / 60);
+    const minutes = diffMinutes % 60;
+
+    const formattedMinutes = minutes < 10 ? `0${minutes}` : minutes;
+    return { text: `${hours}:${formattedMinutes}`, isNextDay };
+}
 import {
     ensureDataKey,
     encryptSignature,
@@ -1606,7 +1629,7 @@ document.addEventListener('DOMContentLoaded', () => {
         workerSelect.value = '';
     });
 
-    function addWorkerRow(name, timeIn = '08:00', timeOut = '16:30', hours = '8.5') {
+    function addWorkerRow(name, timeIn = '08:00', timeOut = '16:30') {
         const tr = document.createElement('tr');
 
         // Name Cell
@@ -1624,6 +1647,7 @@ document.addEventListener('DOMContentLoaded', () => {
         inputTimeIn.type = 'time';
         inputTimeIn.value = timeIn;
         inputTimeIn.className = 'table-input';
+        inputTimeIn.required = true;
         tdTimeIn.appendChild(inputTimeIn);
         tr.appendChild(tdTimeIn);
 
@@ -1633,18 +1657,48 @@ document.addEventListener('DOMContentLoaded', () => {
         inputTimeOut.type = 'time';
         inputTimeOut.value = timeOut;
         inputTimeOut.className = 'table-input';
+        inputTimeOut.required = true;
         tdTimeOut.appendChild(inputTimeOut);
         tr.appendChild(tdTimeOut);
 
         // Hours Cell
         const tdHours = document.createElement('td');
         const inputHours = document.createElement('input');
-        inputHours.type = 'number';
-        inputHours.value = hours;
-        inputHours.step = '0.5';
+        inputHours.type = 'text';
+        // Initial value calculated below
+        inputHours.placeholder = 'H:MM';
         inputHours.className = 'table-input';
+        inputHours.required = true;
+
+        const warningSpan = document.createElement('span');
+        warningSpan.className = 'hours-warning';
+        warningSpan.style.display = 'none'; // Hidden by default
+
         tdHours.appendChild(inputHours);
+        tdHours.appendChild(warningSpan);
         tr.appendChild(tdHours);
+
+        // Auto-Calculate Logic
+        function updateRowHours() {
+            const valIn = inputTimeIn.value;
+            const valOut = inputTimeOut.value;
+
+            const result = calculateHours(valIn, valOut);
+            inputHours.value = result.text;
+
+            if (result.isNextDay) {
+                warningSpan.textContent = 'Next Day';
+                warningSpan.style.display = 'block';
+            } else {
+                warningSpan.style.display = 'none';
+            }
+        }
+
+        inputTimeIn.addEventListener('input', updateRowHours);
+        inputTimeOut.addEventListener('input', updateRowHours);
+
+        // Initialize
+        updateRowHours();
 
         // Delete Button Cell
         const tdDelete = document.createElement('td');
