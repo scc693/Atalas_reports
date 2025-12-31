@@ -131,6 +131,7 @@ function initializeAppLogic() {
 
         try {
             console.log("Checking for redirect result...");
+            console.log("PWA mode:", isStandaloneDisplay());
             const result = await getRedirectResult(auth);
             if (result?.user) {
                 redirectUser = result.user;
@@ -140,28 +141,59 @@ function initializeAppLogic() {
             }
         } catch (error) {
             console.error("Redirect result error:", error);
-            alert("Login failed: " + error.message);
+            console.error("Error code:", error.code);
+            console.error("Error message:", error.message);
+
+            // Only show alert if this looks like a real auth error, not a configuration issue
+            if (error.code && !error.code.includes('configuration') && !error.code.includes('invalid-api-key')) {
+                alert("Login failed: " + error.message);
+            }
         } finally {
+            // Always restore the login button if user didn't sign in
             if (!redirectUser && loginOverlay && originalLoginOverlayContent !== null) {
+                console.log("Restoring login button");
                 loginOverlay.innerHTML = originalLoginOverlayContent;
+
+                // Re-attach the login button event listener since we replaced the HTML
+                const newLoginBtn = document.getElementById('google-login-btn');
+                if (newLoginBtn) {
+                    console.log("Re-attaching login button listener");
+                    newLoginBtn.addEventListener('click', handleLoginClick);
+                }
             }
         }
     };
 
-    handleRedirectResult();
-
-    googleLoginBtn.addEventListener('click', () => {
+    // Named login handler function so it can be reused when restoring the login button
+    const handleLoginClick = () => {
         console.log("Login button clicked"); // Debug log
 
-        if (prefersRedirect()) {
+        // Check if Firebase is configured
+        if (!isConfigured) {
+            alert("Firebase is not configured. Please set up your Firebase credentials to use authentication.");
+            return;
+        }
+
+        const useRedirect = prefersRedirect();
+        console.log("Auth method:", useRedirect ? "redirect" : "popup");
+        console.log("Environment:", {
+            isStandalone: isStandaloneDisplay(),
+            isIOS: /iphone|ipad|ipod/i.test(window.navigator.userAgent || ''),
+            userAgent: window.navigator.userAgent
+        });
+
+        if (useRedirect) {
+            console.log("Using redirect flow for authentication");
             startRedirectSignIn();
             return;
         }
 
+        console.log("Attempting popup sign-in");
         signInWithPopup(auth, provider)
             .then((result) => {
-                console.log("User signed in:", result.user);
+                console.log("User signed in via popup:", result.user);
             }).catch((error) => {
+                console.error("Popup sign-in error:", error);
                 const popupNotSupported = (
                     error.code === 'auth/operation-not-supported-in-this-environment' ||
                     error.code === 'auth/popup-blocked'
@@ -176,7 +208,17 @@ function initializeAppLogic() {
                 console.error("Login failed:", error);
                 alert("Login failed: " + error.message);
             });
-    });
+    };
+
+    // Attach the login button click handler
+    googleLoginBtn.addEventListener('click', handleLoginClick);
+
+    // Only check for redirect result if Firebase is properly configured
+    if (isConfigured) {
+        handleRedirectResult();
+    } else {
+        console.warn("Firebase not configured. Skipping redirect result check.");
+    }
 
     logoutBtn.addEventListener('click', () => {
         signOut(auth).then(() => {
