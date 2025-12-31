@@ -604,38 +604,119 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     document.getElementById('load-incident-signature').addEventListener('click', async () => {
-        let saved = localStorage.getItem('atlas_signature');
+        let saved = null;
 
-        // If not in local, try cloud check (if logged in)
-        if (!saved && auth.currentUser) {
+        // Helper to apply signature data to the incident pad
+        const applySignatureData = (dataString) => {
+            if (dataString.trim().startsWith('[')) {
+                try {
+                    const vectorData = JSON.parse(dataString);
+                    incidentSignaturePad.fromData(vectorData);
+                } catch (e) {
+                    console.error("Error parsing vector sig:", e);
+                    return false;
+                }
+            } else {
+                incidentSignaturePad.fromDataURL(dataString);
+            }
+            incidentSignatureHasData = true;
+            incidentCachedVectorData = incidentSignaturePad.toData();
+            return true;
+        };
+
+        // 1. Try encrypted local storage first
+        const localEncrypted = localStorage.getItem('atlas_signature_encrypted');
+        if (localEncrypted) {
             try {
-                const userDoc = await getDoc(doc(db, "users", auth.currentUser.email));
-                if (userDoc.exists() && userDoc.data().signature) {
-                    saved = userDoc.data().signature;
-                    localStorage.setItem('atlas_signature', saved); // Sync local
+                const encData = JSON.parse(localEncrypted);
+                const keyData = await loadDataKey();
+                if (keyData) {
+                    const decrypted = await decryptSignature(encData.ciphertext, encData.iv, keyData.key);
+                    if (applySignatureData(decrypted)) {
+                        return;
+                    }
+                }
+            } catch (err) {
+                console.error("Error loading local encrypted signature for incident:", err);
+            }
+        }
+
+        // 2. Try legacy local storage
+        saved = localStorage.getItem('atlas_signature');
+        if (saved) {
+            if (applySignatureData(saved)) {
+                return;
+            }
+        }
+
+        // 3. Try cloud (if logged in)
+        if (auth.currentUser) {
+            try {
+                const userDocData = await getDoc(doc(db, "users", auth.currentUser.email));
+                if (userDocData.exists()) {
+                    const data = userDocData.data();
+
+                    // Check for encrypted signature first
+                    if (data.signatureEncrypted && data.signatureEncrypted.ciphertext) {
+                        const encData = data.signatureEncrypted;
+
+                        // Try to load local key first
+                        let keyData = await loadDataKey();
+
+                        if (keyData) {
+                            try {
+                                const decrypted = await decryptSignature(encData.ciphertext, encData.iv, keyData.key);
+                                if (applySignatureData(decrypted)) {
+                                    return;
+                                }
+                            } catch (err) {
+                                console.warn("Decryption with local key failed for incident signature:", err);
+                            }
+                        }
+
+                        // If multi-device and no local key or decryption failed, prompt for passphrase
+                        if (encData.isMultiDevice && encData.wrappedKey) {
+                            const passphrase = prompt("Enter your signature passphrase to load on this device:");
+                            if (passphrase) {
+                                try {
+                                    const unwrappedKey = await unwrapKeyWithPassphrase(
+                                        encData.wrappedKey,
+                                        encData.wrappedKeySalt,
+                                        encData.wrappedKeyIv,
+                                        passphrase
+                                    );
+                                    // Save the key locally for future use
+                                    await saveDataKey(unwrappedKey, encData.keyVersion || 1);
+                                    const decrypted = await decryptSignature(encData.ciphertext, encData.iv, unwrappedKey);
+                                    if (applySignatureData(decrypted)) {
+                                        return;
+                                    }
+                                } catch (err) {
+                                    console.error("Passphrase unlock failed for incident signature:", err);
+                                    alert("Incorrect passphrase or decryption failed. Please try again.");
+                                    return;
+                                }
+                            } else {
+                                return; // User cancelled passphrase prompt
+                            }
+                        }
+                    }
+
+                    // Fallback to legacy unencrypted signature
+                    if (data.signature) {
+                        saved = data.signature;
+                        localStorage.setItem('atlas_signature', saved);
+                        if (applySignatureData(saved)) {
+                            return;
+                        }
+                    }
                 }
             } catch (e) {
                 console.error("Error fetching signature:", e);
             }
         }
 
-        if (saved) {
-            // Check if it's JSON (vector) or DataURL (image)
-            if (saved.trim().startsWith('[')) {
-                try {
-                    const vectorData = JSON.parse(saved);
-                    incidentSignaturePad.fromData(vectorData);
-                } catch (e) {
-                    console.error("Error parsing vector sig:", e);
-                }
-            } else {
-                incidentSignaturePad.fromDataURL(saved);
-            }
-            incidentSignatureHasData = true;
-            incidentCachedVectorData = incidentSignaturePad.toData();
-        } else {
-            alert("No saved signature found. Please save one in the Daily Report tab first.");
-        }
+        alert("No saved signature found. Please save one in the Daily Report tab first.");
     });
 
     // --- Photo Upload Logic ---
