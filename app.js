@@ -220,6 +220,11 @@ function initializeAppLogic() {
 
     onAuthStateChanged(auth, async (user) => {
         if (user) {
+            // Cancel One Tap prompt if user is already logged in
+            if (window.google?.accounts?.id) {
+                window.google.accounts.id.cancel();
+            }
+
             loginOverlay.style.display = 'none';
             appContent.classList.remove('hidden');
             userDisplayName.textContent = user.email;
