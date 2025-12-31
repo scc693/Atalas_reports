@@ -16,6 +16,7 @@ import {
 import {
     GoogleAuthProvider,
     signInWithCredential,
+    signInWithPopup,
     onAuthStateChanged,
     signOut
 } from "firebase/auth";
@@ -143,8 +144,8 @@ function initializeAppLogic() {
         }
     };
 
-    // Manual login button handler (triggers One Tap)
-    const handleLoginClick = () => {
+    // Manual login button handler (triggers One Tap with popup fallback)
+    const handleLoginClick = async () => {
         console.log("Login button clicked");
 
         if (!isConfigured) {
@@ -152,13 +153,44 @@ function initializeAppLogic() {
             return;
         }
 
-        if (!window.google?.accounts?.id) {
-            alert("Google Sign-In is still loading. Please try again in a moment.");
-            return;
-        }
+        // Try One Tap first if available
+        if (window.google?.accounts?.id) {
+            console.log("Attempting One Tap sign-in...");
 
-        // Trigger the One Tap prompt manually
-        window.google.accounts.id.prompt();
+            // Trigger One Tap and check if it displays
+            window.google.accounts.id.prompt((notification) => {
+                if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+                    console.log("One Tap not available, falling back to popup sign-in");
+                    console.log("Reason:", notification.getNotDisplayedReason() || notification.getSkippedReason());
+
+                    // Fall back to popup authentication
+                    handlePopupSignIn();
+                }
+            });
+        } else {
+            // Google Identity Services not loaded, use popup directly
+            console.log("Google Identity Services not loaded, using popup sign-in");
+            handlePopupSignIn();
+        }
+    };
+
+    // Popup sign-in fallback
+    const handlePopupSignIn = async () => {
+        try {
+            const provider = new GoogleAuthProvider();
+            const result = await signInWithPopup(auth, provider);
+            console.log("User signed in via popup:", result.user);
+        } catch (error) {
+            console.error("Popup sign-in error:", error);
+            if (error.code === 'auth/popup-blocked') {
+                alert("Popup was blocked. Please allow popups for this site and try again.");
+            } else if (error.code === 'auth/cancelled-popup-request') {
+                // User closed the popup, no need to show error
+                console.log("Popup sign-in cancelled by user");
+            } else {
+                alert("Login failed: " + error.message);
+            }
+        }
     };
 
     // Attach the login button click handler
