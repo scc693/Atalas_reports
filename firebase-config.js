@@ -30,6 +30,9 @@ const firebaseConfig = {
   appId: getEnv('VITE_FIREBASE_APP_ID')
 };
 
+// Google Client ID for One Tap
+const googleClientId = getEnv('VITE_GOOGLE_CLIENT_ID') || 'YOUR_GOOGLE_CLIENT_ID';
+
 // Google Drive API Config
 const driveConfig = {
   clientId: "YOUR_GOOGLE_CLIENT_ID", // TODO: Replace with actual Client ID
@@ -63,5 +66,5 @@ const auth = initializeAuth(app, {
 });
 const storage = getStorage(app); // Initialize Storage
 
-export { app, db, auth, storage, driveConfig };
+export { app, db, auth, storage, driveConfig, googleClientId };
 

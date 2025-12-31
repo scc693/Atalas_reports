@@ -1,4 +1,4 @@
-import { db, app, auth, storage } from './firebase-config.js';
+import { db, app, auth, storage, googleClientId } from './firebase-config.js';
 import {
     collection,
     addDoc,
@@ -14,10 +14,8 @@ import {
     setDoc
 } from "firebase/firestore";
 import {
-    signInWithPopup,
-    signInWithRedirect,
-    getRedirectResult,
     GoogleAuthProvider,
+    signInWithCredential,
     onAuthStateChanged,
     signOut
 } from "firebase/auth";
@@ -93,136 +91,95 @@ function initializeAppLogic() {
         return;
     }
 
-    // --- Auth Logic ---
-    const provider = new GoogleAuthProvider();
-    const isStandaloneDisplay = () => {
-        // iOS PWAs don't reliably report standalone mode via a single flag
-        // across versions, so check multiple indicators.
-        return (
-            window.matchMedia('(display-mode: standalone)').matches ||
-            window.matchMedia('(display-mode: fullscreen)').matches ||
-            window.navigator.standalone === true
-        );
-    };
+    // --- Google One Tap Authentication ---
 
-    const prefersRedirect = () => {
-        const isIOS = /iphone|ipad|ipod/i.test(window.navigator.userAgent || '');
-        // Force redirect flows for PWAs and iOS devices where popups are blocked
-        // (e.g., standalone mode on iOS Safari).
-        return isStandaloneDisplay() || isIOS;
-    };
+    // Initialize Google One Tap when the Google Identity Services library is ready
+    const initializeGoogleOneTap = () => {
+        if (!window.google?.accounts?.id) {
+            console.warn("Google Identity Services not loaded yet. Retrying...");
+            setTimeout(initializeGoogleOneTap, 500);
+            return;
+        }
 
-    const startRedirectSignIn = () => {
-        console.log("Starting redirect sign-in");
-        signInWithRedirect(auth, provider).catch((error) => {
-            console.error("Redirect login failed:", error);
-            alert("Login failed: " + error.message);
+        if (!isConfigured || googleClientId === 'YOUR_GOOGLE_CLIENT_ID') {
+            console.warn("Firebase or Google Client ID not configured. Skipping Google One Tap.");
+            return;
+        }
+
+        console.log("Initializing Google One Tap...");
+
+        // Initialize Google One Tap
+        window.google.accounts.id.initialize({
+            client_id: googleClientId,
+            callback: handleCredentialResponse,
+            auto_select: false,
+            cancel_on_tap_outside: false,
+        });
+
+        // Show the One Tap prompt automatically
+        window.google.accounts.id.prompt((notification) => {
+            if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+                console.log("One Tap not displayed:", notification.getNotDisplayedReason());
+                console.log("Moment skipped:", notification.getSkippedReason());
+            }
         });
     };
 
-    const originalLoginOverlayContent = loginOverlay ? loginOverlay.innerHTML : null;
-
-    const handleRedirectResult = async () => {
-        let redirectUser = null;
-
-        if (loginOverlay && originalLoginOverlayContent !== null) {
-            loginOverlay.innerHTML = '<div class="login-box"><div>Processing login...</div></div>';
-        }
+    // Handle the credential response from Google One Tap
+    const handleCredentialResponse = async (response) => {
+        console.log("Google One Tap credential received");
 
         try {
-            console.log("Checking for redirect result...");
-            console.log("PWA mode:", isStandaloneDisplay());
-            const result = await getRedirectResult(auth);
-            if (result?.user) {
-                redirectUser = result.user;
-                console.log("User signed in via redirect:", result.user);
-            } else {
-                console.log("No redirect result found");
-            }
+            // Create a Google credential from the ID token
+            const credential = GoogleAuthProvider.credential(response.credential);
+
+            // Sign in to Firebase with the credential
+            const result = await signInWithCredential(auth, credential);
+            console.log("User signed in successfully:", result.user);
+
         } catch (error) {
-            console.error("Redirect result error:", error);
-            console.error("Error code:", error.code);
-            console.error("Error message:", error.message);
-
-            // Only show alert if this looks like a real auth error, not a configuration issue
-            if (error.code && !error.code.includes('configuration') && !error.code.includes('invalid-api-key')) {
-                alert("Login failed: " + error.message);
-            }
-        } finally {
-            // Always restore the login button if user didn't sign in
-            if (!redirectUser && loginOverlay && originalLoginOverlayContent !== null) {
-                console.log("Restoring login button");
-                loginOverlay.innerHTML = originalLoginOverlayContent;
-
-                // Re-attach the login button event listener since we replaced the HTML
-                const newLoginBtn = document.getElementById('google-login-btn');
-                if (newLoginBtn) {
-                    console.log("Re-attaching login button listener");
-                    newLoginBtn.addEventListener('click', handleLoginClick);
-                }
-            }
+            console.error("Sign-in error:", error);
+            alert("Login failed: " + error.message);
         }
     };
 
-    // Named login handler function so it can be reused when restoring the login button
+    // Manual login button handler (triggers One Tap)
     const handleLoginClick = () => {
-        console.log("Login button clicked"); // Debug log
+        console.log("Login button clicked");
 
-        // Check if Firebase is configured
         if (!isConfigured) {
             alert("Firebase is not configured. Please set up your Firebase credentials to use authentication.");
             return;
         }
 
-        const useRedirect = prefersRedirect();
-        console.log("Auth method:", useRedirect ? "redirect" : "popup");
-        console.log("Environment:", {
-            isStandalone: isStandaloneDisplay(),
-            isIOS: /iphone|ipad|ipod/i.test(window.navigator.userAgent || ''),
-            userAgent: window.navigator.userAgent
-        });
-
-        if (useRedirect) {
-            console.log("Using redirect flow for authentication");
-            startRedirectSignIn();
+        if (!window.google?.accounts?.id) {
+            alert("Google Sign-In is still loading. Please try again in a moment.");
             return;
         }
 
-        console.log("Attempting popup sign-in");
-        signInWithPopup(auth, provider)
-            .then((result) => {
-                console.log("User signed in via popup:", result.user);
-            }).catch((error) => {
-                console.error("Popup sign-in error:", error);
-                const popupNotSupported = (
-                    error.code === 'auth/operation-not-supported-in-this-environment' ||
-                    error.code === 'auth/popup-blocked'
-                );
-
-                if (popupNotSupported || prefersRedirect()) {
-                    console.warn("Popup sign-in not supported. Falling back to redirect.", error);
-                    startRedirectSignIn();
-                    return;
-                }
-
-                console.error("Login failed:", error);
-                alert("Login failed: " + error.message);
-            });
+        // Trigger the One Tap prompt manually
+        window.google.accounts.id.prompt();
     };
 
     // Attach the login button click handler
     googleLoginBtn.addEventListener('click', handleLoginClick);
 
-    // Only check for redirect result if Firebase is properly configured
+    // Initialize Google One Tap when ready
     if (isConfigured) {
-        handleRedirectResult();
+        initializeGoogleOneTap();
     } else {
-        console.warn("Firebase not configured. Skipping redirect result check.");
+        console.warn("Firebase not configured. Skipping Google One Tap initialization.");
     }
 
     logoutBtn.addEventListener('click', () => {
         signOut(auth).then(() => {
             console.log("User signed out");
+
+            // Disable Google One Tap auto-select after sign out
+            if (window.google?.accounts?.id) {
+                window.google.accounts.id.disableAutoSelect();
+            }
+
             window.location.reload();
         }).catch((error) => {
             console.error("Logout failed:", error);
