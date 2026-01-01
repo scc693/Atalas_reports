@@ -1,6 +1,6 @@
 {
   "name": "Atlas Daily Report",
-  "short_name": "AtlasReport",
+  "short_name": "Atlas Reports",
   "description": "Atlas Wrecking Co. Daily Report Application",
   "start_url": "./index.html",
   "display": "standalone",
