@@ -1,0 +1,79 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Monochrome version for iOS/Android tinting -->
+  <!-- All elements use currentColor so the OS can tint them -->
+  <defs>
+    <path id="topTextPath" d="M60 256 A196 196 0 0 1 452 256"/>
+    <path id="bottomTextPath" d="M452 256 A196 196 0 0 1 60 256"/>
+  </defs>
+
+  <!-- Outer ring -->
+  <circle cx="256" cy="256" r="248" fill="none" stroke="currentColor" stroke-width="48"/>
+
+  <!-- Side arcs -->
+  <path d="M32 175 A230 230 0 0 0 32 337" fill="none" stroke="currentColor" stroke-width="52"/>
+  <path d="M480 175 A230 230 0 0 1 480 337" fill="none" stroke="currentColor" stroke-width="52"/>
+
+  <!-- Atlas figure with globe -->
+  <g fill="currentColor" stroke="currentColor" stroke-width="2">
+    <!-- Globe circle -->
+    <circle cx="256" cy="175" r="80" fill="none" stroke-width="5"/>
+
+    <!-- Globe - North America -->
+    <path d="M200 150 Q210 130 235 125 Q250 120 260 130 Q280 125 290 140 Q295 155 285 165 Q275 180 255 180 Q235 185 220 175 Q205 165 200 150Z"/>
+
+    <!-- Globe - South America -->
+    <path d="M270 190 Q280 200 278 220 Q275 240 265 250 Q255 255 250 240 Q248 220 255 205 Q260 195 270 190Z"/>
+
+    <!-- Globe - Europe/Africa hint -->
+    <path d="M295 150 Q300 145 305 150 Q308 160 305 170 Q298 175 295 165 Q292 158 295 150Z"/>
+
+    <!-- Atlas body - kneeling figure -->
+    <path d="M256 260
+             C235 260 220 280 218 310
+             L215 340
+             C212 355 220 365 235 365
+             L240 330
+             L245 380
+             L250 420
+             L262 420
+             L267 380
+             L272 330
+             L277 365
+             C292 365 300 355 297 340
+             L294 310
+             C292 280 277 260 256 260Z" stroke-width="1"/>
+
+    <!-- Left arm reaching up -->
+    <path d="M220 280
+             C195 260 180 230 180 200
+             C180 180 190 165 200 160
+             L210 175
+             C205 185 200 200 205 220
+             C210 245 230 265 235 275Z" stroke-width="1"/>
+
+    <!-- Right arm reaching up -->
+    <path d="M292 280
+             C317 260 332 230 332 200
+             C332 180 322 165 312 160
+             L302 175
+             C307 185 312 200 307 220
+             C302 245 282 265 277 275Z" stroke-width="1"/>
+
+    <!-- Head -->
+    <ellipse cx="256" cy="248" rx="18" ry="22"/>
+
+    <!-- Bent left leg -->
+    <path d="M240 380
+             C225 385 210 400 200 420
+             L215 425
+             C222 412 232 400 245 395Z" stroke-width="1"/>
+
+    <!-- Bent right leg (kneeling) -->
+    <path d="M267 380
+             L275 410
+             L295 405
+             L280 420
+             L260 425
+             L255 400Z" stroke-width="1"/>
+  </g>
+</svg>
