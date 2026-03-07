@@ -1,0 +1,24 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // Incident report photos - temporary storage before Drive upload
+    match /temp_incidents/{reportId}/{fileName} {
+      // Authenticated users can upload photos (workers submitting reports)
+      allow create: if request.auth != null
+                    && request.resource.size < 10 * 1024 * 1024
+                    && request.resource.contentType.matches('image/.*');
+
+      // Authenticated users can read (admins reviewing, submitters viewing)
+      allow read: if request.auth != null;
+
+      // Authenticated users can delete (cleanup after admin approval)
+      allow delete: if request.auth != null;
+    }
+
+    // Default deny everything else
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

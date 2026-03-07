@@ -66,7 +66,7 @@ import {
 // Main Execution
 const isConfigured = app.options.apiKey !== "YOUR_API_KEY";
 const storageUploadsEnabled = true; // Firebase Storage is configured for incident photos
-const driveUploadsEnabled = false; // TODO: enable when Google Drive integration is configured
+const driveUploadsEnabled = isDriveConfigured;
 const driveConfigured = isDriveConfigured;
 const storagePlaceholderMessage = "Firebase Storage not configured. Photos are marked as pending upload.";
 const drivePlaceholderMessage = "Google Drive not configured. Approval uploads are pending setup.";
@@ -1133,39 +1133,15 @@ document.addEventListener('DOMContentLoaded', () => {
         adminSignatureHasData = false;
         adminCachedVectorData = [];
 
-        // Prevent Self-Approval logic
-        if (data.submittedBy === auth.currentUser.email) {
-            approveReportBtn.disabled = true;
-            approveReportBtn.textContent = "Cannot Approve Own Report";
-            approveReportBtn.title = "You cannot approve a report you submitted.";
-            approveReportBtn.style.backgroundColor = '#ccc';
-            approveReportBtn.style.cursor = 'not-allowed';
+        // Reset approve button state for this report
+        approveReportBtn.disabled = false;
+        approveReportBtn.textContent = "Approve & Sign";
+        approveReportBtn.title = "";
+        approveReportBtn.style.backgroundColor = 'var(--btn-success)';
+        approveReportBtn.style.cursor = 'pointer';
 
-            // Add a warning message in UI
-            const warningMsg = document.createElement('div');
-            warningMsg.id = 'self-approve-warning';
-            warningMsg.style.color = 'red';
-            warningMsg.style.marginBottom = '10px';
-            warningMsg.style.fontWeight = 'bold';
-            warningMsg.textContent = "⚠️ You cannot approve your own report.";
-
-            // Remove any existing warning to prevent duplicates
-            const existingWarning = document.getElementById('self-approve-warning');
-            if (existingWarning) existingWarning.remove();
-
-            const actionsDiv = document.querySelector('#report-review-modal .actions');
-            if (actionsDiv) actionsDiv.parentNode.insertBefore(warningMsg, actionsDiv);
-
-        } else {
-            approveReportBtn.disabled = false;
-            approveReportBtn.textContent = "Approve & Sign";
-            approveReportBtn.title = "";
-            approveReportBtn.style.backgroundColor = 'var(--btn-success)';
-            approveReportBtn.style.cursor = 'pointer';
-
-            const existingWarning = document.getElementById('self-approve-warning');
-            if (existingWarning) existingWarning.remove();
-        }
+        const existingWarning = document.getElementById('self-approve-warning');
+        if (existingWarning) existingWarning.remove();
     }
 
     approveReportBtn.addEventListener('click', async () => {
