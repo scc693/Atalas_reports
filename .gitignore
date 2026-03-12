@@ -6,3 +6,5 @@ node_modules/
 .vscode/
 dist/
 report-builder-overview.txt
+security_report.md
+.claude/settings.local.json
