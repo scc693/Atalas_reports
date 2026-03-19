@@ -21,6 +21,9 @@
     <!-- PWA Manifest and Theme -->
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#E31B23">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
     <!-- Libraries -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -33,7 +36,8 @@
 <body>
     <div id="login-overlay">
         <div class="login-box">
-            <h1>Atlas Daily Report</h1>
+            <img src="public/atlas-icon.svg" alt="Atlas Wrecking Co." class="login-logo" width="80" height="80">
+            <h1 class="login-title">Atlas Daily Report</h1>
             <p>Please sign in to access the application.</p>
             <!-- Google One Tap will render here automatically -->
             <div id="g_id_onload"></div>
@@ -47,14 +51,14 @@
             <h1 data-i18n="app_title">Atlas Reports</h1>
             <div class="header-controls">
                 <button id="lang-btn">Español</button>
-                <button id="hamburger-btn" aria-label="Menu">☰</button>
+                <button id="hamburger-btn" aria-label="Menu"></button>
                 <div id="nav-menu" class="header-actions">
-                    <span id="user-display-name" style="margin-right: 10px; font-weight: bold;"></span>
+                    <span id="user-display-name"></span>
                     <button id="settings-btn" aria-label="Settings" data-i18n="manage_lists" class="hidden">⚙️ Manage
                         Lists</button>
-                    <button id="review-reports-btn" class="hidden" style="background-color: #ff9800;"
+                    <button id="review-reports-btn" class="hidden"
                         data-i18n="reviews_list_title">📋 Reviews</button>
-                    <button id="logout-btn" style="background-color: #f44336; margin-left: 5px;">Logout</button>
+                    <button id="logout-btn">Logout</button>
                 </div>
             </div>
         </header>
@@ -274,8 +278,8 @@
     </div>
 
     <!-- Detailed Report Review Modal -->
-    <div id="report-review-modal" class="modal hidden" style="z-index: 1001;">
-        <div class="modal-content" style="max-width: 800px;">
+    <div id="report-review-modal" class="modal hidden">
+        <div class="modal-content">
             <span class="close-modal" id="close-report-review">&times;</span>
             <h2>Review Incident Report</h2>
             <div id="review-content" class="review-content">
@@ -291,10 +295,10 @@
                     <button type="button" id="clear-admin-signature">Clear</button>
                 </div>
                 <textarea id="admin-note" rows="3" placeholder="Notes (required for revision request)"></textarea>
-                <div class="actions" style="margin-top: 10px;">
-                    <button id="approve-report-btn" style="background-color: var(--btn-success);">Approve &
+                <div class="actions">
+                    <button id="approve-report-btn">Approve &
                         Sign</button>
-                    <button id="request-revision-btn" style="background-color: var(--btn-danger);">Request
+                    <button id="request-revision-btn">Request
                         Revision</button>
                 </div>
             </div>
@@ -338,9 +342,9 @@
 
             <div class="settings-section">
                 <h3>Signature Settings</h3>
-                <button id="reset-passphrase-btn" style="background-color: #ff9800;">Reset Multi-Device
+                <button id="reset-passphrase-btn">Reset Multi-Device
                     Passphrase</button>
-                <p style="font-size: 0.85em; color: #666; margin-top: 5px;">This will clear your saved signature and
+                <p class="help-text">This will clear your saved signature and
                     allow you to set a new passphrase.</p>
             </div>
         </div>
@@ -348,13 +352,13 @@
 
     <!-- Multi-Device Signature Choice Modal -->
     <div id="signature-save-modal" class="modal hidden">
-        <div class="modal-content" style="max-width: 400px;">
+        <div class="modal-content">
             <span class="close-modal" id="close-signature-save-modal">&times;</span>
             <h2>Save Signature</h2>
             <p>Your signature will be encrypted for security.</p>
 
-            <div class="form-group" style="margin: 15px 0;">
-                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+            <div class="form-group">
+                <label class="checkbox-label">
                     <input type="checkbox" id="multi-device-checkbox">
                     <span>Access this signature on other devices</span>
                 </label>
@@ -369,33 +373,33 @@
                     <label for="signature-passphrase-confirm">Confirm passphrase:</label>
                     <input type="password" id="signature-passphrase-confirm" placeholder="Re-enter passphrase">
                 </div>
-                <p style="font-size: 0.85em; color: #666;">You'll need this passphrase to access your signature on other
+                <p class="help-text">You'll need this passphrase to access your signature on other
                     devices.</p>
             </div>
 
-            <div class="actions" style="margin-top: 15px;">
-                <button id="confirm-save-signature-btn" style="background-color: var(--btn-success);">Save
+            <div class="actions">
+                <button id="confirm-save-signature-btn">Save
                     Signature</button>
-                <button id="cancel-save-signature-btn" style="background-color: #ccc;">Cancel</button>
+                <button id="cancel-save-signature-btn" class="btn-secondary">Cancel</button>
             </div>
         </div>
     </div>
 
     <!-- Passphrase Entry Modal (for loading on new device) -->
     <div id="passphrase-entry-modal" class="modal hidden">
-        <div class="modal-content" style="max-width: 400px;">
+        <div class="modal-content">
             <span class="close-modal" id="close-passphrase-entry-modal">&times;</span>
             <h2>Unlock Signature</h2>
             <p>Enter your passphrase to access your signature on this device.</p>
 
-            <div class="form-group" style="margin: 15px 0;">
+            <div class="form-group">
                 <label for="unlock-passphrase">Passphrase:</label>
                 <input type="password" id="unlock-passphrase" placeholder="Enter your passphrase">
             </div>
 
-            <div class="actions" style="margin-top: 15px;">
-                <button id="confirm-unlock-btn" style="background-color: var(--btn-success);">Unlock</button>
-                <button id="cancel-unlock-btn" style="background-color: #ccc;">Cancel</button>
+            <div class="actions">
+                <button id="confirm-unlock-btn">Unlock</button>
+                <button id="cancel-unlock-btn" class="btn-secondary">Cancel</button>
             </div>
         </div>
     </div>
